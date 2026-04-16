@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutomatON Claims — Вход</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231E40AF'/%3E%3Cpath d='M8 22V10h2v5h3l3-5h2.2l-3.2 5.2L18.5 22H16l-3-6H10v6H8z' fill='white'/%3E%3Ccircle cx='24' cy='10' r='3' fill='%23059669'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: #F8FAFC;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.06);
+  padding: 44px 40px 36px;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 16px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.login-logo {
+  width: 60px;
+  height: 60px;
+  background: #1E40AF;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 14px rgba(30,64,175,0.3);
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+}
+
+.login-title span {
+  color: #1E40AF;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: #64748B;
+  font-weight: 400;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  color: #0F172A;
+  background: #F8FAFC;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: #1E40AF;
+  box-shadow: 0 0 0 3px rgba(30,64,175,0.10);
+  background: #FFFFFF;
+}
+
+.form-group input::placeholder {
+  color: #94A3B8;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px 20px;
+  background: #1E40AF;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  margin-top: 4px;
+  box-shadow: 0 2px 8px rgba(30,64,175,0.2);
+}
+
+.login-btn:hover {
+  background: #1a3a9e;
+  box-shadow: 0 4px 14px rgba(30,64,175,0.3);
+}
+
+.login-btn:active {
+  background: #163585;
+}
+
+.login-btn:disabled {
+  background: #94A3B8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.error-message {
+  display: none;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.error-message.visible {
+  display: block;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 36px;
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 32px 24px 24px; margin: 0 12px; }
+  .form-group input { min-height: 44px; font-size: 16px; }
+  .login-btn { min-height: 48px; font-size: 15px; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="login-header">
+    <div class="login-logo">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 22V10h2.5v4.5h2.5l2.8-4.5h2.8l-3.4 5.3L19 22h-2.8l-3.2-6.2H10.5V22H8z" fill="white"/>
+        <circle cx="24" cy="10" r="3.5" fill="#34D399" opacity="0.9"/>
+      </svg>
+    </div>
+    <div class="login-title">Automat<span>ON</span> Claims</div>
+    <div class="login-subtitle">Управление на застрахователни преписки</div>
+  </div>
+
+  <div class="error-message" id="errorMsg"></div>
+
+  <form id="loginForm" autocomplete="on">
+    <div class="form-group">
+      <label for="username">Потребител</label>
+      <input type="text" id="username" name="username" placeholder="Въведете потребителско име" required autocomplete="username" autofocus>
+    </div>
+    <div class="form-group">
+      <label for="password">Парола</label>
+      <input type="password" id="password" name="password" placeholder="Въведете парола" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="login-btn" id="loginBtn">Вход</button>
+  </form>
+</div>
+
+<div class="login-footer">AutomatON Claims &copy; 2026</div>
+
+<script>
+function decodeJwtPayload(token) {
+  var parts = token.split('.');
+  if (parts.length < 2) throw new Error('Invalid token');
+  var norm = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  var pad = norm + '='.repeat((4 - norm.length % 4) % 4);
+  return JSON.parse(atob(pad));
+}
+
+// If already authenticated, redirect
+(function checkExistingToken() {
+  var token = localStorage.getItem('claims-token');
+  if (token) {
+    try {
+      var payload = decodeJwtPayload(token);
+      if (payload.exp && payload.exp * 1000 > Date.now()) {
+        window.location.href = '/';
+        return;
+      }
+      localStorage.removeItem('claims-token');
+    } catch (e) {
+      localStorage.removeItem('claims-token');
+    }
+  }
+})();
+
+var form = document.getElementById('loginForm');
+var errorMsg = document.getElementById('errorMsg');
+var loginBtn = document.getElementById('loginBtn');
+
+form.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  var username = document.getElementById('username').value.trim();
+  var password = document.getElementById('password').value;
+
+  if (!username || !password) {
+    showError('Моля въведете потребител и парола.');
+    return;
+  }
+
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Влизане...';
+  hideError();
+
+  try {
+    var res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password })
+    });
+
+    var data = await res.json();
+
+    if (data.success && data.token) {
+      localStorage.setItem('claims-token', data.token);
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Грешка при вход. Моля опитайте отново.');
+    }
+  } catch (err) {
+    showError('Грешка при свързване със сървъра.');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Вход';
+  }
+});
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.classList.add('visible');
+}
+
+function hideError() {
+  errorMsg.classList.remove('visible');
+}
+</script>
+</body>
+</html>

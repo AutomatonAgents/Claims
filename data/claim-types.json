@@ -1,0 +1,34 @@
+{
+  "claim_types": [
+    {"key": "auto_collision", "label": "ПТП", "policy_types": ["casco", "mtpl"], "icon": "🚗"},
+    {"key": "auto_theft", "label": "Кражба на МПС", "policy_types": ["casco"], "icon": "🔒"},
+    {"key": "auto_glass", "label": "Счупено стъкло", "policy_types": ["casco"], "icon": "🪟"},
+    {"key": "property_fire", "label": "Пожар", "policy_types": ["property"], "icon": "🔥"},
+    {"key": "property_flood", "label": "Наводнение", "policy_types": ["property"], "icon": "🌊"},
+    {"key": "property_theft", "label": "Кражба (имущество)", "policy_types": ["property"], "icon": "🏠"}
+  ],
+  "policy_types": [
+    {"key": "casco", "label": "Каско"},
+    {"key": "mtpl", "label": "Гражданска отговорност (ГО)"},
+    {"key": "property", "label": "Имущество"}
+  ],
+  "statuses": [
+    {"key": "received", "label": "Получена", "color": "#6B7280"},
+    {"key": "awaiting_client_docs", "label": "Чака документи", "color": "#F59E0B"},
+    {"key": "validated_by_broker", "label": "Валидирана", "color": "#3B82F6"},
+    {"key": "submitted_to_insurer", "label": "Изпратена", "color": "#8B5CF6"},
+    {"key": "insurer_requested_info", "label": "Допълнителна информация", "color": "#F59E0B"},
+    {"key": "awaiting_insurer_decision", "label": "Чака решение", "color": "#6366F1"},
+    {"key": "approved_by_insurer", "label": "Одобрена", "color": "#059669"},
+    {"key": "partially_approved", "label": "Частично одобрена", "color": "#10B981"},
+    {"key": "rejected_by_insurer", "label": "Отказана", "color": "#DC2626"},
+    {"key": "paid", "label": "Платена", "color": "#059669"},
+    {"key": "closed", "label": "Приключена", "color": "#9CA3AF"}
+  ],
+  "priorities": [
+    {"key": "urgent", "label": "Спешна", "color": "#DC2626"},
+    {"key": "high", "label": "Висок", "color": "#F59E0B"},
+    {"key": "normal", "label": "Нормален", "color": "#3B82F6"},
+    {"key": "low", "label": "Нисък", "color": "#9CA3AF"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "insurers": [
+    {"name": "ДЗИ", "full_name": "ДЗИ - Общо застраховане", "phone": "0700 10 104", "email": "claims@dzi.bg"},
+    {"name": "Алианц", "full_name": "Алианц България", "phone": "0700 13 014", "email": "claims@allianz.bg"},
+    {"name": "Булстрад", "full_name": "Булстрад Виена Иншурънс Груп", "phone": "02 985 6610", "email": "claims@bulstrad.bg"},
+    {"name": "Армеец", "full_name": "ЗАД Армеец", "phone": "02 981 4290", "email": "claims@armeec.bg"},
+    {"name": "Лев Инс", "full_name": "ЗАД Лев Инс", "phone": "02 952 2552", "email": "claims@levins.bg"},
+    {"name": "Евроинс", "full_name": "ЗД Евроинс", "phone": "02 965 1665", "email": "claims@euroins.bg"},
+    {"name": "Уника", "full_name": "Уника АД", "phone": "02 981 6181", "email": "claims@uniqa.bg"},
+    {"name": "Дженерали", "full_name": "Дженерали Застраховане", "phone": "02 926 6111", "email": "claims@generali.bg"}
+  ]
+}

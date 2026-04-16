@@ -1,0 +1,3327 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutomatON Claims — Застрахователни преписки</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231E40AF'/%3E%3Cpath d='M8 22V10h2v5h3l3-5h2.2l-3.2 5.2L18.5 22H16l-3-6H10v6H8z' fill='white'/%3E%3Ccircle cx='24' cy='10' r='3' fill='%23059669'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+:root {
+  --primary: #1E40AF;
+  --primary-hover: #1a3a9e;
+  --primary-light: #EFF6FF;
+  --primary-soft: rgba(30,64,175,0.08);
+  --success: #059669;
+  --success-light: #ECFDF5;
+  --success-soft: rgba(5,150,105,0.08);
+  --danger: #DC2626;
+  --danger-light: #FEF2F2;
+  --danger-soft: rgba(220,38,38,0.08);
+  --warning: #F59E0B;
+  --warning-light: #FFFBEB;
+  --warning-soft: rgba(245,158,11,0.08);
+  --bg: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --sidebar-bg: #0F172A;
+  --sidebar-text: #94A3B8;
+  --sidebar-active: #FFFFFF;
+  --sidebar-hover: #1E293B;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --sidebar-width: 220px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,0.1);
+  --z-sidebar: 100;
+  --z-toast: 500;
+  --z-modal-backdrop: 900;
+  --z-modal: 1000;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== LAYOUT ===== */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-sidebar);
+}
+
+.sidebar-brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-brand-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.3px;
+}
+
+.sidebar-brand-title span { color: #60A5FA; }
+
+.sidebar-brand-sub {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-btn:hover {
+  background: var(--sidebar-hover);
+  color: #E2E8F0;
+}
+
+.sidebar-btn.active {
+  background: rgba(30,64,175,0.25);
+  color: var(--sidebar-active);
+}
+
+.sidebar-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.sidebar-btn.active svg { opacity: 1; }
+
+.sidebar-user {
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: #1E40AF;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #E2E8F0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: var(--sidebar-text);
+}
+
+.sidebar-logout {
+  background: none;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+
+.sidebar-logout:hover { color: var(--danger); }
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.page {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+
+.page.active { display: flex; flex-direction: column; }
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #047857; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #B91C1C; }
+.btn-warning { background: var(--warning); color: #fff; }
+.btn-warning:hover { background: #D97706; }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+}
+.btn-outline:hover { background: var(--bg); border-color: #CBD5E1; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-xs { padding: 3px 8px; font-size: 11px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== BADGES ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-status-received { background: var(--primary-soft); color: var(--primary); }
+.badge-status-awaiting_client_docs { background: var(--warning-soft); color: #B45309; }
+.badge-status-validated_by_broker { background: var(--success-soft); color: var(--success); }
+.badge-status-submitted_to_insurer { background: #EDE9FE; color: #7C3AED; }
+.badge-status-insurer_requested_info { background: #FFF7ED; color: #C2410C; }
+.badge-status-awaiting_insurer_decision { background: #F0F9FF; color: #0369A1; }
+.badge-status-approved_by_insurer { background: var(--success-soft); color: var(--success); }
+.badge-status-partially_approved { background: var(--warning-soft); color: #B45309; }
+.badge-status-rejected_by_insurer { background: var(--danger-soft); color: var(--danger); }
+.badge-status-paid { background: #ECFDF5; color: #047857; }
+.badge-status-closed { background: #F1F5F9; color: #64748B; }
+
+.badge-type-casco { background: #DBEAFE; color: #1D4ED8; }
+.badge-type-mtpl { background: #FEF3C7; color: #92400E; }
+.badge-type-property { background: #D1FAE5; color: #065F46; }
+
+.badge-priority-urgent { background: var(--danger); color: #fff; }
+.badge-priority-high { background: #FEE2E2; color: var(--danger); }
+.badge-priority-normal { background: #F1F5F9; color: #64748B; }
+.badge-priority-low { background: #F1F5F9; color: #94A3B8; }
+
+.badge-confidence-high { background: var(--success-soft); color: var(--success); }
+.badge-confidence-medium { background: var(--warning-soft); color: #B45309; }
+.badge-confidence-low { background: var(--danger-soft); color: var(--danger); }
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-body { padding: 16px 18px; }
+
+/* ===== TABLES ===== */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.data-table tr { cursor: pointer; transition: background 0.1s; }
+.data-table tr:hover { background: var(--primary-soft); }
+
+.data-table tr.row-overdue { background: rgba(220,38,38,0.04); }
+.data-table tr.row-overdue:hover { background: rgba(220,38,38,0.08); }
+.data-table tr.row-due-today { background: rgba(245,158,11,0.04); }
+.data-table tr.row-due-today:hover { background: rgba(245,158,11,0.08); }
+
+/* ===== WORK QUEUE FILTERS ===== */
+.wq-tabs {
+  display: flex;
+  gap: 2px;
+  background: #F1F5F9;
+  border-radius: var(--radius-md);
+  padding: 3px;
+  margin-bottom: 16px;
+}
+
+.wq-tab {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.wq-tab.active {
+  background: #FFFFFF;
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.wq-tab:hover:not(.active) { color: var(--text-primary); }
+
+.wq-tab .tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 5px;
+  background: #E2E8F0;
+  color: var(--text-secondary);
+}
+
+.wq-tab.active .tab-count {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.wq-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.wq-filters select, .wq-filters input {
+  padding: 6px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+}
+
+.wq-filters select:focus, .wq-filters input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30,64,175,0.1);
+}
+
+.overdue-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.next-action-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.days-open {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.missing-docs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.missing-docs-badge.has-missing { background: var(--danger-soft); color: var(--danger); }
+.missing-docs-badge.all-good { background: var(--success-soft); color: var(--success); }
+
+/* ===== CASE DETAIL ===== */
+.case-detail-page {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.case-detail-page.active { display: flex; flex-direction: column; }
+
+.case-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.case-back-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+}
+
+.case-back-btn:hover { color: var(--primary); }
+
+.case-number-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.case-insurer-ref {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.case-header-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.next-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 28px;
+  background: var(--warning-light);
+  border-bottom: 1px solid #FDE68A;
+  flex-shrink: 0;
+}
+
+.next-action-bar.no-action {
+  background: var(--success-light);
+  border-bottom-color: #A7F3D0;
+}
+
+.next-action-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400E;
+  white-space: nowrap;
+}
+
+.next-action-bar.no-action .next-action-label { color: var(--success); }
+
+.next-action-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.next-action-due {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.next-action-due.overdue { color: var(--danger); }
+.next-action-due.today { color: #B45309; }
+.next-action-due.upcoming { color: var(--text-secondary); }
+
+.case-body {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.case-left-panel {
+  border-right: 1px solid var(--card-border);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.case-center-panel {
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.case-right-panel {
+  border-left: 1px solid var(--card-border);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.panel-section {
+  margin-bottom: 20px;
+}
+
+.panel-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.panel-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.panel-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.panel-card-row .label { color: var(--text-muted); }
+.panel-card-row .value { color: var(--text-primary); font-weight: 500; }
+
+.egn-masked {
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--primary);
+  text-decoration: underline dotted;
+}
+
+/* ===== DOCUMENT CHECKLIST ===== */
+.doc-checklist-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.doc-checklist-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.doc-checklist-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+}
+
+.doc-status-icon {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+.doc-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.doc-count.complete { color: var(--success); }
+.doc-count.incomplete { color: var(--danger); }
+
+.completeness-banner {
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.completeness-banner.ready {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid #A7F3D0;
+}
+
+.completeness-banner.missing {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid #FECACA;
+}
+
+/* ===== DOC THUMBNAILS ===== */
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.doc-thumb {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  text-align: center;
+  position: relative;
+}
+
+.doc-thumb-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 8px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.doc-thumb-name {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-thumb-type {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.doc-confidence-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+}
+
+/* ===== AI EXTRACTION ===== */
+.extraction-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.extraction-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 120px;
+}
+
+.extraction-field input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+}
+
+.extraction-field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30,64,175,0.1);
+}
+
+.extraction-field input.low-confidence {
+  background: #FFFBEB;
+  border-color: var(--warning);
+}
+
+/* ===== TIMELINE ===== */
+.timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--card-border);
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--card-bg);
+}
+
+.timeline-dot.status { background: var(--primary); }
+.timeline-dot.document { background: var(--success); }
+.timeline-dot.communication { background: #7C3AED; }
+.timeline-dot.ai { background: var(--warning); }
+.timeline-dot.note { background: var(--text-muted); }
+
+.timeline-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.timeline-content {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.timeline-actor {
+  font-weight: 600;
+}
+
+.timeline-notes {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  font-style: italic;
+}
+
+/* ===== BOTTOM ACTIONS ===== */
+.case-bottom-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--card-bg);
+  border-top: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+
+/* ===== INTAKE PAGE ===== */
+.drop-zone {
+  border: 2px dashed var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 24px;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.drop-zone-icon {
+  font-size: 40px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.drop-zone-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.drop-zone-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.upload-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.upload-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+}
+
+.upload-progress-item .file-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-progress-item .file-status {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.upload-progress-item .file-status.queued { color: var(--text-muted); }
+.upload-progress-item .file-status.processing { color: var(--warning); }
+.upload-progress-item .file-status.completed { color: var(--success); }
+.upload-progress-item .file-status.failed { color: var(--danger); }
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #E2E8F0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.progress-bar-fill.processing { background: var(--warning); width: 60%; animation: progressPulse 1.5s infinite; }
+.progress-bar-fill.completed { background: var(--success); width: 100%; }
+.progress-bar-fill.failed { background: var(--danger); width: 100%; }
+
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.pipeline-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 0;
+  margin-bottom: 24px;
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--card-border);
+}
+
+.pipeline-step.active {
+  background: var(--warning-light);
+  color: #B45309;
+  border-color: #FDE68A;
+}
+
+.pipeline-step.done {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: #A7F3D0;
+}
+
+.pipeline-arrow {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.intake-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.intake-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.intake-form .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30,64,175,0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* ===== DASHBOARD ===== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.kpi-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.kpi-card.danger .kpi-value { color: var(--danger); }
+.kpi-card.success .kpi-value { color: var(--success); }
+.kpi-card.warning .kpi-value { color: #B45309; }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chart-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* ===== SETTINGS ===== */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.settings-section {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.settings-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.settings-row:last-child { border-bottom: none; }
+
+.settings-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-label small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ===== MODALS ===== */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.5);
+  z-index: var(--z-modal-backdrop);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-backdrop.active { display: flex; }
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.modal-close:hover { color: var(--text-primary); }
+
+.modal-body { padding: 20px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--card-border);
+}
+
+/* ===== TOAST ===== */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn 0.25s ease;
+  max-width: 380px;
+}
+
+.toast.success { background: var(--success); color: #fff; }
+.toast.error { background: var(--danger); color: #fff; }
+.toast.warning { background: var(--warning); color: #fff; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ===== SKELETON ===== */
+.skeleton {
+  background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-row {
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text { height: 14px; width: 60%; margin-bottom: 8px; }
+.skeleton-text-short { height: 14px; width: 35%; margin-bottom: 8px; }
+
+/* ===== SVG CHARTS ===== */
+.bar-chart-container { padding: 10px 0; }
+.donut-chart-container { display: flex; justify-content: center; padding: 10px 0; }
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1100px) {
+  .case-body { grid-template-columns: 1fr; }
+  .case-left-panel, .case-right-panel { border: none; border-bottom: 1px solid var(--card-border); }
+}
+
+@media (max-width: 768px) {
+  .sidebar { width: 56px; min-width: 56px; }
+  .sidebar-brand-title, .sidebar-brand-sub, .sidebar-btn span,
+  .sidebar-user-info { display: none; }
+  .sidebar-btn { justify-content: center; padding: 10px; }
+  .page { padding: 16px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .intake-form { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== APP LAYOUT ===== -->
+<div class="app-layout">
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-title">Automat<span>ON</span> Claims</div>
+    <div class="sidebar-brand-sub">Застрахователни преписки</div>
+  </div>
+  <div class="sidebar-nav">
+    <button class="sidebar-btn active" data-page="workqueue" onclick="navigateTo('workqueue')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Работна опашка</span>
+    </button>
+    <button class="sidebar-btn" data-page="intake" onclick="navigateTo('intake')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Нова преписка</span>
+    </button>
+    <button class="sidebar-btn" data-page="dashboard" onclick="navigateTo('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Табло</span>
+    </button>
+    <button class="sidebar-btn" data-page="settings" onclick="navigateTo('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Настройки</span>
+    </button>
+  </div>
+  <div class="sidebar-user" id="sidebarUser">
+    <div class="sidebar-avatar" id="userAvatar">--</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="userName">---</div>
+      <div class="sidebar-user-role" id="userRole">---</div>
+    </div>
+    <button class="sidebar-logout" onclick="logout()" title="Изход">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<div class="main-content">
+
+<!-- ===== PAGE: WORK QUEUE ===== -->
+<div class="page active" id="page-workqueue">
+  <div class="page-header">
+    <h1 class="page-title">Работна опашка</h1>
+    <button class="btn btn-primary" onclick="navigateTo('intake')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Нова преписка
+    </button>
+  </div>
+
+  <!-- Group tabs -->
+  <div class="wq-tabs">
+    <button class="wq-tab active" data-wq-group="action" onclick="setWqGroup('action')">Нуждае се от действие<span class="tab-count" id="wqCountAction">0</span></button>
+    <button class="wq-tab" data-wq-group="client" onclick="setWqGroup('client')">Чака клиент<span class="tab-count" id="wqCountClient">0</span></button>
+    <button class="wq-tab" data-wq-group="insurer" onclick="setWqGroup('insurer')">Чака застраховател<span class="tab-count" id="wqCountInsurer">0</span></button>
+    <button class="wq-tab" data-wq-group="closed" onclick="setWqGroup('closed')">Приключени<span class="tab-count" id="wqCountClosed">0</span></button>
+  </div>
+
+  <!-- Quick filters -->
+  <div class="wq-filters">
+    <select id="filterAssignee" onchange="loadWorkQueue()">
+      <option value="">Всички брокери</option>
+      <option value="mine">Моите преписки</option>
+    </select>
+    <select id="filterInsurer" onchange="loadWorkQueue()">
+      <option value="">Всички застрахователи</option>
+      <option value="ДЗИ">ДЗИ</option>
+      <option value="Алианц">Алианц</option>
+      <option value="Булстрад">Булстрад</option>
+      <option value="Армеец">Армеец</option>
+      <option value="Лев Инс">Лев Инс</option>
+      <option value="Евроинс">Евроинс</option>
+      <option value="Уника">Уника</option>
+    </select>
+    <select id="filterType" onchange="loadWorkQueue()">
+      <option value="">Всички типове</option>
+      <option value="auto_collision">Каско ПТП</option>
+      <option value="auto_theft">Каско кражба</option>
+      <option value="auto_glass">Каско стъкло</option>
+      <option value="property_fire">Имущество пожар</option>
+      <option value="property_flood">Имущество наводнение</option>
+      <option value="property_theft">Имущество кражба</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+      <input type="checkbox" id="filterOverdue" onchange="loadWorkQueue()"> Само просрочени
+    </label>
+  </div>
+
+  <!-- Table -->
+  <div class="card" style="flex:1;overflow:auto;">
+    <table class="data-table" id="wqTable">
+      <thead>
+        <tr>
+          <th>Преписка</th>
+          <th>Заявител</th>
+          <th>Тип</th>
+          <th>Статус</th>
+          <th>Следващо действие</th>
+          <th>Срок</th>
+          <th>Дни</th>
+          <th>Док.</th>
+          <th>Отговорник</th>
+        </tr>
+      </thead>
+      <tbody id="wqBody">
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">Зареждане...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PAGE: CASE DETAIL ===== -->
+<div class="case-detail-page" id="page-casedetail">
+  <!-- Header bar -->
+  <div class="case-header-bar">
+    <button class="case-back-btn" onclick="navigateTo('workqueue')" title="Обратно">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div>
+      <span class="case-number-title" id="cdCaseNumber">---</span>
+      <span class="case-insurer-ref" id="cdInsurerRef"></span>
+    </div>
+    <span id="cdStatusBadge" class="badge"></span>
+    <div class="case-header-actions" id="cdTransitions"></div>
+    <select id="cdPriority" onchange="updateCasePriority()" style="padding:5px 8px;border:1px solid var(--card-border);border-radius:var(--radius-md);font-size:12px;">
+      <option value="urgent">Спешна</option>
+      <option value="high">Висока</option>
+      <option value="normal">Нормална</option>
+      <option value="low">Ниска</option>
+    </select>
+  </div>
+
+  <!-- Next action bar -->
+  <div class="next-action-bar" id="cdNextActionBar">
+    <span class="next-action-label">СЛЕДВАЩО ДЕЙСТВИЕ:</span>
+    <span class="next-action-value" id="cdNextAction">---</span>
+    <span class="next-action-due" id="cdNextActionDue">---</span>
+    <button class="btn btn-xs btn-outline" onclick="editNextAction()">Редактирай</button>
+  </div>
+
+  <!-- Three-column body -->
+  <div class="case-body">
+    <!-- LEFT: Parties, Vehicles, Policy -->
+    <div class="case-left-panel">
+      <div class="panel-section">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Страни
+        </div>
+        <div id="cdParties"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 6 20 16 16 14 16 8"/></svg>
+          Превозни средства
+        </div>
+        <div id="cdVehicles"><div class="skeleton skeleton-row"></div></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Полица и застраховател
+        </div>
+        <div id="cdPolicy"><div class="skeleton skeleton-row"></div></div>
+      </div>
+    </div>
+
+    <!-- CENTER: Documents, Checklist, Extraction -->
+    <div class="case-center-panel">
+      <div id="cdCompletenessBanner" class="completeness-banner missing" style="display:none;"></div>
+
+      <div class="panel-section">
+        <div class="panel-section-title" style="justify-content:space-between;">
+          <span style="display:flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Чеклист документи
+          </span>
+          <button class="btn btn-xs btn-primary" onclick="uploadDocToCase()">Качи документ</button>
+        </div>
+        <table class="doc-checklist-table" id="cdChecklist">
+          <thead><tr><th style="width:30px;"></th><th>Документ</th><th>Изискване</th><th>Брой</th></tr></thead>
+          <tbody id="cdChecklistBody">
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Зареждане...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Качени документи
+        </div>
+        <div class="doc-grid" id="cdDocGrid">
+          <div class="skeleton" style="height:120px;"></div>
+        </div>
+      </div>
+
+      <div class="panel-section" id="cdExtractionSection" style="display:none;">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          AI Извлечени данни
+        </div>
+        <div id="cdExtractionFields"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Timeline -->
+    <div class="case-right-panel">
+      <div class="panel-section">
+        <div class="panel-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Хронология
+        </div>
+        <div class="timeline" id="cdTimeline">
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="case-bottom-bar">
+    <button class="btn btn-outline" onclick="openCommModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Комуникация
+    </button>
+    <button class="btn btn-outline" onclick="openNoteModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Бележка
+    </button>
+    <div style="flex:1;"></div>
+    <button class="btn btn-success" onclick="generateSubmission()" id="cdSubmissionBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Генерирай пакет за застраховател
+    </button>
+  </div>
+</div>
+
+<!-- ===== PAGE: INTAKE ===== -->
+<div class="page" id="page-intake">
+  <div class="page-header">
+    <h1 class="page-title">Нова преписка</h1>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-zone-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="drop-zone-text">Плъзнете документи тук</div>
+    <div class="drop-zone-sub">или натиснете за избор на файлове (снимки, PDF)</div>
+  </div>
+  <input type="file" id="fileInput" multiple accept="image/*,.pdf" style="display:none;" onchange="handleIntakeFiles(this.files)">
+
+  <!-- Pipeline steps -->
+  <div class="pipeline-steps" id="intakePipeline" style="display:none;">
+    <div class="pipeline-step" id="pipeOcr">OCR Извличане</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step" id="pipeClassify">Класификация</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step" id="pipeComplete">Пълнота</div>
+  </div>
+
+  <!-- Upload progress -->
+  <div class="upload-progress-list" id="intakeProgressList"></div>
+
+  <!-- Missing docs alert -->
+  <div id="intakeMissingDocs" style="display:none;"></div>
+
+  <!-- Intake form (auto-filled) -->
+  <div id="intakeFormContainer" style="display:none;">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">Данни от преписката (попълнени от AI)</div>
+      <div class="card-body">
+        <div class="intake-form" id="intakeForm">
+          <div class="form-group">
+            <label>Тип претенция</label>
+            <select id="intClaimType">
+              <option value="">-- Изберете --</option>
+              <option value="auto_collision">Каско ПТП</option>
+              <option value="auto_theft">Каско кражба</option>
+              <option value="auto_glass">Каско стъкло</option>
+              <option value="property_fire">Имущество пожар</option>
+              <option value="property_flood">Имущество наводнение</option>
+              <option value="property_theft">Имущество кражба</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Тип полица</label>
+            <select id="intPolicyType">
+              <option value="">-- Изберете --</option>
+              <option value="casco">Каско</option>
+              <option value="mtpl">ГО/MTPL</option>
+              <option value="property">Имущество</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Дата на инцидент</label>
+            <input type="date" id="intIncidentDate">
+          </div>
+          <div class="form-group">
+            <label>Място на инцидент</label>
+            <input type="text" id="intIncidentLocation" placeholder="Град, улица...">
+          </div>
+          <div class="form-group full-width">
+            <label>Описание на инцидента</label>
+            <textarea id="intIncidentDesc" rows="3" placeholder="Описание на събитието..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Застраховател</label>
+            <select id="intInsurer">
+              <option value="">-- Изберете --</option>
+              <option>ДЗИ</option>
+              <option>Алианц</option>
+              <option>Булстрад</option>
+              <option>Армеец</option>
+              <option>Лев Инс</option>
+              <option>Евроинс</option>
+              <option>Уника</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Номер полица</label>
+            <input type="text" id="intPolicyNumber" placeholder="Номер на полицата">
+          </div>
+          <div class="form-group">
+            <label>Име на заявител</label>
+            <input type="text" id="intClaimantName" placeholder="Име на заявителя">
+          </div>
+          <div class="form-group">
+            <label>ЕГН на заявител</label>
+            <input type="text" id="intClaimantEgn" placeholder="ЕГН">
+          </div>
+          <div class="form-group">
+            <label>Телефон</label>
+            <input type="text" id="intClaimantPhone" placeholder="Телефон за контакт">
+          </div>
+          <div class="form-group">
+            <label>Имейл</label>
+            <input type="email" id="intClaimantEmail" placeholder="Имейл">
+          </div>
+          <div class="form-group">
+            <label>Рег. номер (заявител)</label>
+            <input type="text" id="intVehRegNo" placeholder="СА 1234 ВК">
+          </div>
+          <div class="form-group">
+            <label>Марка / Модел</label>
+            <input type="text" id="intVehMakeModel" placeholder="Марка и модел">
+          </div>
+          <div class="form-group full-width">
+            <label>Описание на щетите</label>
+            <textarea id="intDamageDesc" rows="2" placeholder="Описание на щетите по МПС..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Приоритет</label>
+            <select id="intPriority">
+              <option value="normal">Нормален</option>
+              <option value="urgent">Спешен</option>
+              <option value="high">Висок</option>
+              <option value="low">Нисък</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Очаквана сума (BGN)</label>
+            <input type="number" id="intEstAmount" placeholder="0.00" step="0.01">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
+      <button class="btn btn-outline" onclick="saveDraft()">Запази като чернова</button>
+      <button class="btn btn-primary" onclick="createCase()">Създай преписка</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: DASHBOARD ===== -->
+<div class="page" id="page-dashboard">
+  <div class="page-header">
+    <h1 class="page-title">Табло</h1>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Отворени</div>
+      <div class="kpi-value" id="kpiOpen">-</div>
+    </div>
+    <div class="kpi-card warning">
+      <div class="kpi-label">Чакат документи</div>
+      <div class="kpi-value" id="kpiAwaitingDocs">-</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Изпратени</div>
+      <div class="kpi-value" id="kpiSubmitted">-</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">Просрочени (&gt;30 дни)</div>
+      <div class="kpi-value" id="kpiOverdue">-</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="kpi-label">Ср. дни обработка</div>
+      <div class="kpi-value" id="kpiAvgDays">-</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Преписки по застраховател</div>
+      <div class="bar-chart-container" id="chartInsurer"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Преписки по тип</div>
+      <div class="donut-chart-container" id="chartType"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: SETTINGS ===== -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <h1 class="page-title">Настройки</h1>
+  </div>
+
+  <div class="settings-grid">
+    <div class="settings-section">
+      <div class="settings-section-title">Брандиране</div>
+      <div class="settings-row">
+        <div class="settings-label">Лого<small>PNG или SVG, макс. 512KB</small></div>
+        <input type="file" id="settingsLogo" accept="image/*" style="font-size:12px;max-width:160px;">
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Основен цвят</div>
+        <input type="color" id="settingsPrimaryColor" value="#1E40AF">
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Име на компанията</div>
+        <input type="text" id="settingsCompanyName" placeholder="AutomatON Claims" style="padding:5px 8px;border:1px solid var(--card-border);border-radius:var(--radius-md);font-size:13px;width:180px;">
+      </div>
+      <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary btn-sm" onclick="saveBranding()">Запази</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">AI Доставчик</div>
+      <div class="settings-row">
+        <div class="settings-label">Модел за OCR / Класификация</div>
+        <select id="settingsAiProvider" style="padding:5px 8px;border:1px solid var(--card-border);border-radius:var(--radius-md);font-size:12px;">
+          <option value="anthropic">Anthropic Claude</option>
+          <option value="openai">OpenAI GPT</option>
+          <option value="google">Google Gemini</option>
+          <option value="fixture">Демо режим (fixture)</option>
+        </select>
+      </div>
+      <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary btn-sm" onclick="saveAiProvider()">Запази</button>
+      </div>
+    </div>
+
+    <div class="settings-section" style="grid-column:1/-1;">
+      <div class="settings-section-title">Потребители</div>
+      <table class="data-table" id="settingsUsersTable">
+        <thead><tr><th>Потребител</th><th>Пълно име</th><th>Роля</th><th>Създаден</th></tr></thead>
+        <tbody id="settingsUsersBody">
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Зареждане...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- ===== MODAL: Communication ===== -->
+<div class="modal-backdrop" id="commModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Добави комуникация</span>
+      <button class="modal-close" onclick="closeModal('commModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Посока</label>
+        <select id="commDirection">
+          <option value="outbound_client">Изходяща към клиент</option>
+          <option value="inbound_client">Входяща от клиент</option>
+          <option value="outbound_insurer">Изходяща към застраховател</option>
+          <option value="inbound_insurer">Входяща от застраховател</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Канал</label>
+        <select id="commChannel">
+          <option value="phone">Телефон</option>
+          <option value="email">Имейл</option>
+          <option value="portal">Портал</option>
+          <option value="in_person">Лично</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Тема</label>
+        <input type="text" id="commSubject" placeholder="Тема на комуникацията">
+      </div>
+      <div class="form-group">
+        <label>Съдържание</label>
+        <textarea id="commBody" rows="4" placeholder="Описание на разговора..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Дата за проследяване</label>
+        <input type="date" id="commFollowUp">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('commModal')">Отказ</button>
+      <button class="btn btn-primary" onclick="saveComm()">Запази</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Note ===== -->
+<div class="modal-backdrop" id="noteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Добави бележка</span>
+      <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Бележка</label>
+        <textarea id="noteText" rows="4" placeholder="Текст на бележката..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('noteModal')">Отказ</button>
+      <button class="btn btn-primary" onclick="saveNote()">Запази</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Transition Confirm ===== -->
+<div class="modal-backdrop" id="transitionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Промяна на статус</span>
+      <button class="modal-close" onclick="closeModal('transitionModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;" id="transitionMessage">Сигурни ли сте?</p>
+      <div class="form-group">
+        <label>Бележка (незадължително)</label>
+        <textarea id="transitionNotes" rows="2" placeholder="Допълнителна бележка..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('transitionModal')">Отказ</button>
+      <button class="btn btn-primary" id="transitionConfirmBtn" onclick="confirmTransition()">Потвърди</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Edit Next Action ===== -->
+<div class="modal-backdrop" id="nextActionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Редактирай следващо действие</span>
+      <button class="modal-close" onclick="closeModal('nextActionModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Следващо действие</label>
+        <input type="text" id="editNextActionText" placeholder="Опишете следващото действие...">
+      </div>
+      <div class="form-group">
+        <label>Срок</label>
+        <input type="date" id="editNextActionDue">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('nextActionModal')">Отказ</button>
+      <button class="btn btn-primary" onclick="saveNextAction()">Запази</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Upload Doc to Case ===== -->
+<div class="modal-backdrop" id="uploadDocModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Качи документ</span>
+      <button class="modal-close" onclick="closeModal('uploadDocModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Файлове</label>
+        <input type="file" id="caseDocInput" multiple accept="image/*,.pdf" style="font-size:13px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('uploadDocModal')">Отказ</button>
+      <button class="btn btn-primary" onclick="uploadCaseDocs()">Качи</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================================================================
+   AutomatON Claims — Frontend SPA
+   Single-file JS: auth, navigation, work queue, case detail,
+   intake, dashboard, settings, modals, toasts
+   =================================================================== */
+
+// ===== AUTH =====
+var TOKEN_KEY = 'claims-token';
+var currentUser = null;
+var currentCaseId = null;
+var currentCase = null;
+var wqGroup = 'action';
+var pendingTransition = null;
+var intakeCaseId = null;
+var intakeJobIds = [];
+var intakePollingTimer = null;
+
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+function authHeaders() {
+  var t = getToken();
+  return { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' };
+}
+
+function authHeadersNoBody() {
+  return { 'Authorization': 'Bearer ' + getToken() };
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(str)));
+  return d.innerHTML;
+}
+
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  window.location.href = '/login.html';
+}
+
+async function checkAuth() {
+  var token = getToken();
+  if (!token) { window.location.href = '/login.html'; return false; }
+  try {
+    var res = await fetch('/api/auth/me', { headers: authHeadersNoBody() });
+    if (!res.ok) throw new Error('auth');
+    var data = await res.json();
+    if (!data.success) throw new Error('auth');
+    currentUser = data.user;
+    renderUserInfo();
+    return true;
+  } catch (e) {
+    logout();
+    return false;
+  }
+}
+
+function renderUserInfo() {
+  if (!currentUser) return;
+  var name = currentUser.full_name || currentUser.username || '?';
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Администратор' : 'Брокер';
+  document.getElementById('userAvatar').textContent = name.substring(0, 2).toUpperCase();
+}
+
+// ===== NAVIGATION =====
+function navigateTo(page) {
+  // Hide case detail
+  document.getElementById('page-casedetail').classList.remove('active');
+
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.sidebar-btn').forEach(function(b) { b.classList.remove('active'); });
+
+  var el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+
+  var btn = document.querySelector('.sidebar-btn[data-page="' + page + '"]');
+  if (btn) btn.classList.add('active');
+
+  // Load data per page
+  if (page === 'workqueue') loadWorkQueue();
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'settings') loadSettings();
+}
+
+function openCaseDetail(caseId) {
+  currentCaseId = caseId;
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-casedetail').classList.add('active');
+  loadCaseDetail(caseId);
+}
+
+// ===== TOAST =====
+function showToast(type, msg) {
+  var container = document.getElementById('toastContainer');
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 4000);
+}
+
+// ===== MODAL HELPERS =====
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+// ===== STATUS & TYPE LABELS =====
+var STATUS_LABELS = {
+  received: 'Получена',
+  awaiting_client_docs: 'Чака документи',
+  validated_by_broker: 'Валидирана',
+  submitted_to_insurer: 'Изпратена',
+  insurer_requested_info: 'Искана информация',
+  awaiting_insurer_decision: 'Чака решение',
+  approved_by_insurer: 'Одобрена',
+  partially_approved: 'Частично одобрена',
+  rejected_by_insurer: 'Отказана',
+  paid: 'Платена',
+  closed: 'Приключена'
+};
+
+var CLAIM_TYPE_LABELS = {
+  auto_collision: 'Каско ПТП',
+  auto_theft: 'Каско кражба',
+  auto_glass: 'Каско стъкло',
+  property_fire: 'Имущество пожар',
+  property_flood: 'Имущество наводнение',
+  property_theft: 'Имущество кражба'
+};
+
+var POLICY_TYPE_LABELS = {
+  casco: 'Каско',
+  mtpl: 'ГО/MTPL',
+  property: 'Имущество'
+};
+
+var DOC_TYPE_LABELS = {
+  bilateral_statement: 'Двустранен протокол',
+  kat_protocol: 'КАТ протокол',
+  police_report: 'Полицейски протокол',
+  damage_photo: 'Снимка на щета',
+  repair_invoice: 'Фактура от сервиз',
+  expert_assessment: 'Оценка от вещо лице',
+  policy_copy: 'Копие на полица',
+  id_copy: 'Копие на лична карта',
+  vehicle_registration: 'Талон на МПС',
+  vehicle_keys_declaration: 'Декларация за ключове',
+  ownership_proof: 'Документ за собственост',
+  incident_report: 'Описание на събитието',
+  power_of_attorney: 'Пълномощно',
+  other: 'Друг документ'
+};
+
+var TRANSITION_MATRIX = {
+  received: ['awaiting_client_docs', 'validated_by_broker', 'closed'],
+  awaiting_client_docs: ['validated_by_broker', 'closed'],
+  validated_by_broker: ['submitted_to_insurer', 'awaiting_client_docs'],
+  submitted_to_insurer: ['insurer_requested_info', 'awaiting_insurer_decision'],
+  insurer_requested_info: ['submitted_to_insurer', 'awaiting_insurer_decision', 'closed'],
+  awaiting_insurer_decision: ['approved_by_insurer', 'partially_approved', 'rejected_by_insurer'],
+  approved_by_insurer: ['paid', 'closed'],
+  partially_approved: ['paid', 'closed'],
+  rejected_by_insurer: ['submitted_to_insurer', 'closed'],
+  paid: ['closed'],
+  closed: []
+};
+
+var PARTY_ROLE_LABELS = {
+  claimant: 'Заявител',
+  insured: 'Застрахован',
+  driver: 'Водач',
+  counterparty_driver: 'Насрещен водач',
+  counterparty_owner: 'Насрещен собственик',
+  vehicle_owner: 'Собственик на МПС',
+  witness: 'Свидетел',
+  beneficiary: 'Ползващо лице'
+};
+
+var DIRECTION_LABELS = {
+  outbound_client: 'Към клиент',
+  inbound_client: 'От клиент',
+  outbound_insurer: 'Към застраховател',
+  inbound_insurer: 'От застраховател'
+};
+
+var PRIORITY_LABELS = {
+  urgent: 'Спешна',
+  high: 'Висока',
+  normal: 'Нормална',
+  low: 'Ниска'
+};
+
+function statusBadgeClass(status) { return 'badge badge-status-' + status; }
+
+function typeBadgeClass(policyType) {
+  var map = { casco: 'badge-type-casco', mtpl: 'badge-type-mtpl', property: 'badge-type-property' };
+  return 'badge ' + (map[policyType] || 'badge-type-casco');
+}
+
+function priorityBadgeClass(p) { return 'badge badge-priority-' + (p || 'normal'); }
+
+function maskEgn(egn) {
+  if (!egn || egn.length < 4) return egn || '---';
+  return '****' + egn.slice(-4);
+}
+
+function daysBetween(dateStr) {
+  if (!dateStr) return null;
+  var d = new Date(dateStr);
+  var now = new Date();
+  return Math.floor((now - d) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '---';
+  var d = new Date(dateStr);
+  return d.toLocaleDateString('bg-BG');
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '---';
+  var d = new Date(dateStr);
+  return d.toLocaleDateString('bg-BG') + ' ' + d.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+}
+
+function dueStatus(dueDateStr) {
+  if (!dueDateStr) return { cls: 'upcoming', text: '---' };
+  var due = new Date(dueDateStr);
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  var diff = Math.floor((dueDay - today) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return { cls: 'overdue', text: Math.abs(diff) + ' дни просрочие' };
+  if (diff === 0) return { cls: 'today', text: 'Днес' };
+  return { cls: 'upcoming', text: formatDate(dueDateStr) };
+}
+
+function confidenceBadge(conf) {
+  if (conf == null) return '';
+  var pct = Math.round(conf * 100);
+  var cls = conf > 0.8 ? 'badge-confidence-high' : (conf >= 0.5 ? 'badge-confidence-medium' : 'badge-confidence-low');
+  return '<span class="doc-confidence-badge badge ' + cls + '">' + pct + '%</span>';
+}
+
+// ===== API HELPER =====
+async function apiFetch(url, options) {
+  options = options || {};
+  if (!options.headers) options.headers = {};
+  var token = getToken();
+  if (token) options.headers['Authorization'] = 'Bearer ' + token;
+  var res = await fetch(url, options);
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+  return res;
+}
+
+async function apiJson(url, options) {
+  var res = await apiFetch(url, options);
+  return res.json();
+}
+
+// ===== WORK QUEUE =====
+async function loadWorkQueue() {
+  var tbody = document.getElementById('wqBody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></td></tr>';
+
+  try {
+    var params = [];
+    var assignee = document.getElementById('filterAssignee').value;
+    var insurer = document.getElementById('filterInsurer').value;
+    var ctype = document.getElementById('filterType').value;
+    var overdueOnly = document.getElementById('filterOverdue').checked;
+
+    if (assignee === 'mine' && currentUser) params.push('assignee=' + currentUser.id);
+    if (insurer) params.push('insurer=' + encodeURIComponent(insurer));
+    if (ctype) params.push('claim_type=' + encodeURIComponent(ctype));
+    if (overdueOnly) params.push('overdue=1');
+
+    // Map group to statuses
+    var statusMap = {
+      action: 'received,validated_by_broker,insurer_requested_info',
+      client: 'awaiting_client_docs',
+      insurer: 'submitted_to_insurer,awaiting_insurer_decision',
+      closed: 'approved_by_insurer,partially_approved,rejected_by_insurer,paid,closed'
+    };
+    if (statusMap[wqGroup]) params.push('status=' + encodeURIComponent(statusMap[wqGroup]));
+
+    var url = '/api/cases' + (params.length ? '?' + params.join('&') : '');
+    var data = await apiJson(url);
+
+    if (!data.success) throw new Error(data.error || 'Грешка');
+
+    var cases = data.cases || [];
+    renderWorkQueue(cases);
+    updateWqCounts();
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--danger);">' + escHtml(e.message) + '</td></tr>';
+  }
+}
+
+function renderWorkQueue(cases) {
+  var tbody = document.getElementById('wqBody');
+  if (!cases.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">Няма преписки в тази група.</td></tr>';
+    return;
+  }
+
+  // Sort: overdue first, then due today, then upcoming, then no date
+  cases.sort(function(a, b) {
+    var dA = dueStatus(a.next_action_due_date);
+    var dB = dueStatus(b.next_action_due_date);
+    var order = { overdue: 0, today: 1, upcoming: 2 };
+    var oA = a.next_action_due_date ? (order[dA.cls] != null ? order[dA.cls] : 3) : 4;
+    var oB = b.next_action_due_date ? (order[dB.cls] != null ? order[dB.cls] : 3) : 4;
+    if (oA !== oB) return oA - oB;
+    // Within same category, sort by date asc
+    if (a.next_action_due_date && b.next_action_due_date) return a.next_action_due_date.localeCompare(b.next_action_due_date);
+    return (a.created_at || '').localeCompare(b.created_at || '');
+  });
+
+  var html = '';
+  cases.forEach(function(c) {
+    var ds = dueStatus(c.next_action_due_date);
+    var rowClass = ds.cls === 'overdue' ? 'row-overdue' : (ds.cls === 'today' ? 'row-due-today' : '');
+    var daysOpen = daysBetween(c.created_at);
+    var claimantName = c.claimant_name || '---';
+    var policyBadge = c.policy_type || 'casco';
+    var missingDocs = c.missing_docs_count;
+    var missingClass = (missingDocs && missingDocs > 0) ? 'has-missing' : 'all-good';
+    var missingText = (missingDocs && missingDocs > 0) ? missingDocs + ' липсват' : 'OK';
+
+    html += '<tr class="' + rowClass + '" onclick="openCaseDetail(' + c.id + ')">';
+    html += '<td><strong style="color:var(--primary);">' + escHtml(c.case_number) + '</strong></td>';
+    html += '<td>' + escHtml(claimantName) + '</td>';
+    html += '<td><span class="' + typeBadgeClass(policyBadge) + '">' + escHtml(POLICY_TYPE_LABELS[policyBadge] || policyBadge) + '</span></td>';
+    html += '<td><span class="' + statusBadgeClass(c.status) + '">' + escHtml(STATUS_LABELS[c.status] || c.status) + '</span></td>';
+    html += '<td><span class="next-action-text" title="' + escHtml(c.next_action || '') + '">' + escHtml(c.next_action || '---') + '</span></td>';
+    html += '<td><span class="next-action-due ' + ds.cls + '">' + escHtml(ds.text) + '</span></td>';
+    html += '<td><span class="days-open">' + (daysOpen != null ? daysOpen + 'д' : '---') + '</span></td>';
+    html += '<td><span class="missing-docs-badge ' + missingClass + '">' + escHtml(missingText) + '</span></td>';
+    html += '<td style="font-size:12px;color:var(--text-secondary);">' + escHtml(c.assigned_name || '---') + '</td>';
+    html += '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function setWqGroup(group) {
+  wqGroup = group;
+  document.querySelectorAll('.wq-tab').forEach(function(t) {
+    t.classList.toggle('active', t.getAttribute('data-wq-group') === group);
+  });
+  loadWorkQueue();
+}
+
+async function updateWqCounts() {
+  try {
+    var data = await apiJson('/api/dashboard');
+    if (!data.success) return;
+    var d = data.dashboard || data;
+    document.getElementById('wqCountAction').textContent = d.action_needed || 0;
+    document.getElementById('wqCountClient').textContent = d.awaiting_client || 0;
+    document.getElementById('wqCountInsurer').textContent = d.awaiting_insurer || 0;
+    document.getElementById('wqCountClosed').textContent = d.closed || 0;
+  } catch (e) { /* skip */ }
+}
+
+// ===== CASE DETAIL =====
+async function loadCaseDetail(caseId) {
+  try {
+    var data = await apiJson('/api/cases/' + caseId);
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    currentCase = data.case_data || data.case || data;
+    renderCaseDetail();
+  } catch (e) {
+    showToast('error', 'Грешка при зареждане: ' + e.message);
+  }
+}
+
+function renderCaseDetail() {
+  var c = currentCase;
+  if (!c) return;
+
+  // Header
+  document.getElementById('cdCaseNumber').textContent = c.case_number || '---';
+  document.getElementById('cdInsurerRef').textContent = c.insurer_claim_number ? ' / ' + c.insurer_claim_number : '';
+  var sb = document.getElementById('cdStatusBadge');
+  sb.className = statusBadgeClass(c.status);
+  sb.textContent = STATUS_LABELS[c.status] || c.status;
+
+  // Priority
+  document.getElementById('cdPriority').value = c.priority || 'normal';
+
+  // Transitions
+  var transitions = TRANSITION_MATRIX[c.status] || [];
+  var thtml = '';
+  transitions.forEach(function(t) {
+    var cls = t === 'closed' ? 'btn-outline btn-sm' : 'btn-primary btn-sm';
+    thtml += '<button class="btn ' + cls + '" onclick="startTransition(\'' + t + '\')">' + escHtml(STATUS_LABELS[t] || t) + '</button>';
+  });
+  document.getElementById('cdTransitions').innerHTML = thtml;
+
+  // Next action bar
+  var naBar = document.getElementById('cdNextActionBar');
+  document.getElementById('cdNextAction').textContent = c.next_action || 'Няма зададено действие';
+  if (c.next_action) {
+    naBar.classList.remove('no-action');
+    var ds = dueStatus(c.next_action_due_date);
+    var dueEl = document.getElementById('cdNextActionDue');
+    dueEl.textContent = ds.text;
+    dueEl.className = 'next-action-due ' + ds.cls;
+  } else {
+    naBar.classList.add('no-action');
+    document.getElementById('cdNextActionDue').textContent = '';
+  }
+
+  // Parties
+  var parties = c.parties || [];
+  var phtml = '';
+  if (!parties.length) {
+    phtml = '<div style="color:var(--text-muted);font-size:12px;">Няма добавени страни.</div>';
+  }
+  parties.forEach(function(p) {
+    phtml += '<div class="panel-card">';
+    phtml += '<div class="panel-card-title">' + escHtml(PARTY_ROLE_LABELS[p.role] || p.role) + '</div>';
+    phtml += '<div class="panel-card-row"><span class="label">Име</span><span class="value">' + escHtml(p.name) + '</span></div>';
+    if (p.egn) phtml += '<div class="panel-card-row"><span class="label">ЕГН</span><span class="value egn-masked" title="Натиснете за показване" onclick="revealEgn(this,\'' + escHtml(p.egn) + '\')">' + escHtml(maskEgn(p.egn)) + '</span></div>';
+    if (p.phone) phtml += '<div class="panel-card-row"><span class="label">Телефон</span><span class="value">' + escHtml(p.phone) + '</span></div>';
+    if (p.email) phtml += '<div class="panel-card-row"><span class="label">Имейл</span><span class="value">' + escHtml(p.email) + '</span></div>';
+    if (p.is_at_fault != null) phtml += '<div class="panel-card-row"><span class="label">Вина</span><span class="value">' + (p.is_at_fault ? 'Виновен' : 'Невиновен') + '</span></div>';
+    phtml += '</div>';
+  });
+  document.getElementById('cdParties').innerHTML = phtml;
+
+  // Vehicles
+  var vehicles = c.vehicles || [];
+  var vhtml = '';
+  if (!vehicles.length) {
+    vhtml = '<div style="color:var(--text-muted);font-size:12px;">Няма добавени МПС.</div>';
+  }
+  vehicles.forEach(function(v) {
+    vhtml += '<div class="panel-card">';
+    vhtml += '<div class="panel-card-title">' + escHtml(v.role === 'claimant_vehicle' ? 'МПС на заявител' : 'Насрещно МПС') + '</div>';
+    if (v.reg_no) vhtml += '<div class="panel-card-row"><span class="label">Рег. номер</span><span class="value" style="font-weight:700;">' + escHtml(v.reg_no) + '</span></div>';
+    if (v.make || v.model) vhtml += '<div class="panel-card-row"><span class="label">Марка/Модел</span><span class="value">' + escHtml((v.make || '') + ' ' + (v.model || '')) + '</span></div>';
+    if (v.year) vhtml += '<div class="panel-card-row"><span class="label">Година</span><span class="value">' + v.year + '</span></div>';
+    if (v.damage_description) vhtml += '<div class="panel-card-row" style="flex-direction:column;align-items:flex-start;"><span class="label">Щети</span><span class="value" style="font-size:11px;margin-top:2px;">' + escHtml(v.damage_description) + '</span></div>';
+    vhtml += '</div>';
+  });
+  document.getElementById('cdVehicles').innerHTML = vhtml;
+
+  // Policy info
+  var polHtml = '<div class="panel-card">';
+  polHtml += '<div class="panel-card-row"><span class="label">Полица</span><span class="value">' + escHtml(c.policy_number || '---') + '</span></div>';
+  polHtml += '<div class="panel-card-row"><span class="label">Тип полица</span><span class="value">' + escHtml(POLICY_TYPE_LABELS[c.policy_type] || c.policy_type || '---') + '</span></div>';
+  polHtml += '<div class="panel-card-row"><span class="label">Застраховател</span><span class="value">' + escHtml(c.insurer_name || '---') + '</span></div>';
+  if (c.insurer_branch) polHtml += '<div class="panel-card-row"><span class="label">Клон</span><span class="value">' + escHtml(c.insurer_branch) + '</span></div>';
+  polHtml += '<div class="panel-card-row"><span class="label">Тип претенция</span><span class="value">' + escHtml(CLAIM_TYPE_LABELS[c.claim_type] || c.claim_type || '---') + '</span></div>';
+  if (c.incident_date) polHtml += '<div class="panel-card-row"><span class="label">Дата инцидент</span><span class="value">' + escHtml(formatDate(c.incident_date)) + '</span></div>';
+  if (c.incident_location) polHtml += '<div class="panel-card-row"><span class="label">Място</span><span class="value">' + escHtml(c.incident_location) + '</span></div>';
+  if (c.estimated_amount) polHtml += '<div class="panel-card-row"><span class="label">Очаквана сума</span><span class="value">' + Number(c.estimated_amount).toFixed(2) + ' ' + escHtml(c.currency || 'BGN') + '</span></div>';
+  if (c.insurer_approved_amount) polHtml += '<div class="panel-card-row"><span class="label">Одобрена сума</span><span class="value" style="color:var(--success);">' + Number(c.insurer_approved_amount).toFixed(2) + ' BGN</span></div>';
+  polHtml += '</div>';
+  document.getElementById('cdPolicy').innerHTML = polHtml;
+
+  // Documents checklist + grid
+  loadDocuments(c.id);
+
+  // Timeline
+  loadTimeline(c.id);
+}
+
+function revealEgn(el, egn) {
+  el.textContent = egn;
+  el.style.cursor = 'default';
+  el.style.textDecoration = 'none';
+  el.onclick = null;
+}
+
+async function loadDocuments(caseId) {
+  try {
+    var data = await apiJson('/api/cases/' + caseId + '/documents');
+    if (!data.success) throw new Error(data.error);
+    renderDocChecklist(data.requirements || [], data.documents || []);
+    renderDocGrid(data.documents || []);
+    // Load completeness
+    loadCompleteness(caseId);
+  } catch (e) {
+    document.getElementById('cdChecklistBody').innerHTML = '<tr><td colspan="4" style="color:var(--danger);text-align:center;">' + escHtml(e.message) + '</td></tr>';
+  }
+}
+
+function renderDocChecklist(requirements, documents) {
+  var tbody = document.getElementById('cdChecklistBody');
+  if (!requirements.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Няма изисквания за този тип претенция.</td></tr>';
+    return;
+  }
+
+  var docCounts = {};
+  documents.forEach(function(d) {
+    docCounts[d.doc_type] = (docCounts[d.doc_type] || 0) + 1;
+  });
+
+  var html = '';
+  requirements.forEach(function(r) {
+    var have = docCounts[r.doc_type] || 0;
+    var need = r.min_count || 1;
+    var icon, countCls;
+
+    if (r.requirement === 'optional') {
+      icon = '<span class="doc-status-icon" style="color:var(--text-muted);">&#9898;</span>'; // white circle
+      countCls = '';
+    } else if (r.requirement === 'conditional') {
+      icon = have >= need
+        ? '<span class="doc-status-icon" style="color:var(--success);">&#9989;</span>'
+        : '<span class="doc-status-icon" style="color:var(--warning);">&#9888;&#65039;</span>';
+      countCls = have >= need ? 'complete' : '';
+    } else {
+      // required
+      icon = have >= need
+        ? '<span class="doc-status-icon" style="color:var(--success);">&#9989;</span>'
+        : '<span class="doc-status-icon" style="color:var(--danger);">&#10060;</span>';
+      countCls = have >= need ? 'complete' : 'incomplete';
+    }
+
+    html += '<tr>';
+    html += '<td>' + icon + '</td>';
+    html += '<td><span style="font-weight:500;">' + escHtml(r.description_bg || DOC_TYPE_LABELS[r.doc_type] || r.doc_type) + '</span>';
+    if (r.condition_description) html += '<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">' + escHtml(r.condition_description) + '</div>';
+    html += '</td>';
+    html += '<td><span class="badge ' + (r.requirement === 'required' ? 'badge-priority-high' : (r.requirement === 'conditional' ? 'badge-priority-normal' : 'badge-priority-low')) + '">' + escHtml(r.requirement === 'required' ? 'Задължителен' : (r.requirement === 'conditional' ? 'Условен' : 'Незадължителен')) + '</span></td>';
+    html += '<td><span class="doc-count ' + countCls + '">' + have + '/' + need + '</span></td>';
+    html += '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function renderDocGrid(documents) {
+  var grid = document.getElementById('cdDocGrid');
+  if (!documents.length) {
+    grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px;">Няма качени документи.</div>';
+    return;
+  }
+
+  var html = '';
+  documents.forEach(function(d) {
+    var isImage = d.mimetype && d.mimetype.startsWith('image/');
+    html += '<div class="doc-thumb">';
+    html += confidenceBadge(d.ocr_confidence);
+    html += '<div class="doc-thumb-icon">';
+    if (isImage) {
+      html += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+    } else {
+      html += '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    }
+    html += '</div>';
+    html += '<div class="doc-thumb-name" title="' + escHtml(d.original_name) + '">' + escHtml(d.original_name) + '</div>';
+    html += '<div class="doc-thumb-type">' + escHtml(DOC_TYPE_LABELS[d.doc_type] || d.doc_type) + '</div>';
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+}
+
+async function loadCompleteness(caseId) {
+  try {
+    var data = await apiJson('/api/cases/' + caseId + '/completeness');
+    if (!data.success) return;
+    var result = data.result || data;
+    var banner = document.getElementById('cdCompletenessBanner');
+    if (result.ready_to_submit || result.complete) {
+      banner.className = 'completeness-banner ready';
+      banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Готов за изпращане';
+      banner.style.display = 'flex';
+    } else {
+      var missingCount = (result.missing_required || []).length;
+      banner.className = 'completeness-banner missing';
+      banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> ' + missingCount + ' документа липсват';
+      banner.style.display = 'flex';
+    }
+
+    // Show extraction section if we have data
+    if (result.extracted_fields || (currentCase && currentCase.extraction_confidence)) {
+      renderExtractionFields(result.extracted_fields);
+    }
+  } catch (e) { /* skip */ }
+}
+
+function renderExtractionFields(fields) {
+  if (!fields) return;
+  var section = document.getElementById('cdExtractionSection');
+  var container = document.getElementById('cdExtractionFields');
+  section.style.display = '';
+
+  var html = '';
+  var fieldEntries = Object.entries(fields);
+  fieldEntries.forEach(function(entry) {
+    var key = entry[0];
+    var val = entry[1];
+    if (val == null || typeof val === 'object') return;
+    var isLow = false; // Would be set from low_confidence_fields
+    html += '<div class="extraction-field">';
+    html += '<label>' + escHtml(key) + '</label>';
+    html += '<input type="text" value="' + escHtml(String(val)) + '"' + (isLow ? ' class="low-confidence"' : '') + '>';
+    html += '</div>';
+  });
+  container.innerHTML = html || '<div style="color:var(--text-muted);font-size:12px;">Няма извлечени данни.</div>';
+}
+
+async function loadTimeline(caseId) {
+  try {
+    var data = await apiJson('/api/cases/' + caseId + '/timeline');
+    if (!data.success) throw new Error(data.error);
+    renderTimeline(data.timeline || []);
+  } catch (e) {
+    document.getElementById('cdTimeline').innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Грешка при зареждане.</div>';
+  }
+}
+
+function renderTimeline(events) {
+  var container = document.getElementById('cdTimeline');
+  if (!events.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Няма записи в хронологията.</div>';
+    return;
+  }
+
+  // Reverse chronological
+  events.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+
+  var html = '';
+  events.forEach(function(ev) {
+    var dotCls = 'status';
+    if (ev.action === 'document_uploaded') dotCls = 'document';
+    else if (ev.action === 'communication') dotCls = 'communication';
+    else if (ev.action && ev.action.startsWith('ai_')) dotCls = 'ai';
+    else if (ev.action === 'note') dotCls = 'note';
+
+    html += '<div class="timeline-item">';
+    html += '<div class="timeline-dot ' + dotCls + '"></div>';
+    html += '<div class="timeline-time">' + escHtml(formatDateTime(ev.created_at)) + '</div>';
+    html += '<div class="timeline-content">';
+    html += '<span class="timeline-actor">' + escHtml(ev.actor || '---') + '</span> ';
+
+    if (ev.action === 'status_change' && ev.old_status && ev.new_status) {
+      html += escHtml((STATUS_LABELS[ev.old_status] || ev.old_status) + ' &rarr; ' + (STATUS_LABELS[ev.new_status] || ev.new_status));
+    } else {
+      html += escHtml(ev.action || '');
+    }
+    html += '</div>';
+    if (ev.notes) html += '<div class="timeline-notes">' + escHtml(ev.notes) + '</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// ===== CASE ACTIONS =====
+function startTransition(newStatus) {
+  pendingTransition = newStatus;
+  document.getElementById('transitionMessage').textContent =
+    'Промяна на статус от "' + (STATUS_LABELS[currentCase.status] || currentCase.status) + '" към "' + (STATUS_LABELS[newStatus] || newStatus) + '"?';
+  document.getElementById('transitionNotes').value = '';
+  openModal('transitionModal');
+}
+
+async function confirmTransition() {
+  if (!pendingTransition || !currentCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + currentCaseId + '/transition', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ new_status: pendingTransition, notes: document.getElementById('transitionNotes').value })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    closeModal('transitionModal');
+    showToast('success', 'Статусът е променен.');
+    loadCaseDetail(currentCaseId);
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+async function updateCasePriority() {
+  if (!currentCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + currentCaseId, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ priority: document.getElementById('cdPriority').value })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    showToast('success', 'Приоритетът е обновен.');
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function editNextAction() {
+  document.getElementById('editNextActionText').value = currentCase ? (currentCase.next_action || '') : '';
+  document.getElementById('editNextActionDue').value = currentCase ? (currentCase.next_action_due_date || '') : '';
+  openModal('nextActionModal');
+}
+
+async function saveNextAction() {
+  if (!currentCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + currentCaseId, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        next_action: document.getElementById('editNextActionText').value,
+        next_action_due_date: document.getElementById('editNextActionDue').value || null
+      })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    closeModal('nextActionModal');
+    showToast('success', 'Действието е обновено.');
+    loadCaseDetail(currentCaseId);
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function openCommModal() { openModal('commModal'); }
+function openNoteModal() { openModal('noteModal'); }
+
+async function saveComm() {
+  if (!currentCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + currentCaseId + '/communications', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        direction: document.getElementById('commDirection').value,
+        channel: document.getElementById('commChannel').value,
+        subject: document.getElementById('commSubject').value,
+        body: document.getElementById('commBody').value,
+        follow_up_date: document.getElementById('commFollowUp').value || null
+      })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    closeModal('commModal');
+    showToast('success', 'Комуникацията е записана.');
+    // Clear form
+    document.getElementById('commSubject').value = '';
+    document.getElementById('commBody').value = '';
+    document.getElementById('commFollowUp').value = '';
+    loadTimeline(currentCaseId);
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+async function saveNote() {
+  if (!currentCaseId) return;
+  var text = document.getElementById('noteText').value.trim();
+  if (!text) { showToast('warning', 'Моля въведете текст.'); return; }
+  try {
+    // Notes go through timeline endpoint or a generic add
+    var data = await apiJson('/api/cases/' + currentCaseId + '/timeline', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'note', notes: text })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    closeModal('noteModal');
+    document.getElementById('noteText').value = '';
+    showToast('success', 'Бележката е добавена.');
+    loadTimeline(currentCaseId);
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+async function generateSubmission() {
+  if (!currentCaseId) return;
+  try {
+    showToast('success', 'Генериране на пакет...');
+    var data = await apiJson('/api/cases/' + currentCaseId + '/submission-package');
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    showToast('success', 'Пакетът е генериран успешно.');
+    // Could open a new tab/modal with the package summary
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function uploadDocToCase() {
+  document.getElementById('caseDocInput').value = '';
+  openModal('uploadDocModal');
+}
+
+async function uploadCaseDocs() {
+  if (!currentCaseId) return;
+  var files = document.getElementById('caseDocInput').files;
+  if (!files.length) { showToast('warning', 'Изберете файлове.'); return; }
+
+  var formData = new FormData();
+  for (var i = 0; i < files.length; i++) {
+    formData.append('documents', files[i]);
+  }
+
+  try {
+    var res = await apiFetch('/api/cases/' + currentCaseId + '/documents', {
+      method: 'POST',
+      body: formData
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    closeModal('uploadDocModal');
+    showToast('success', 'Документите са качени. AI обработка в ход...');
+
+    // Poll for job completion
+    if (data.job_ids && data.job_ids.length) {
+      pollJobs(data.job_ids, function() {
+        loadDocuments(currentCaseId);
+        loadTimeline(currentCaseId);
+      });
+    } else {
+      loadDocuments(currentCaseId);
+    }
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function pollJobs(jobIds, callback) {
+  var completed = {};
+  var timer = setInterval(async function() {
+    var allDone = true;
+    for (var i = 0; i < jobIds.length; i++) {
+      if (completed[jobIds[i]]) continue;
+      try {
+        var data = await apiJson('/api/jobs/' + jobIds[i]);
+        if (data.success && (data.status === 'completed' || data.status === 'failed')) {
+          completed[jobIds[i]] = true;
+        } else {
+          allDone = false;
+        }
+      } catch (e) { allDone = false; }
+    }
+    if (allDone) {
+      clearInterval(timer);
+      if (callback) callback();
+    }
+  }, 2000);
+}
+
+// ===== INTAKE =====
+var dropZone = null;
+
+function initDropZone() {
+  dropZone = document.getElementById('dropZone');
+  if (!dropZone) return;
+
+  dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      handleIntakeFiles(e.dataTransfer.files);
+    }
+  });
+}
+
+async function handleIntakeFiles(files) {
+  if (!files || !files.length) return;
+
+  // Show pipeline
+  document.getElementById('intakePipeline').style.display = 'flex';
+  setPipelineStep('ocr', 'active');
+
+  // Show progress list
+  var listEl = document.getElementById('intakeProgressList');
+  listEl.innerHTML = '';
+  for (var i = 0; i < files.length; i++) {
+    listEl.innerHTML +=
+      '<div class="upload-progress-item" id="intakeFile' + i + '">' +
+      '<div class="file-name">' + escHtml(files[i].name) + '</div>' +
+      '<div class="file-status queued">На опашка</div>' +
+      '<div class="progress-bar" style="width:80px;"><div class="progress-bar-fill" style="width:0;"></div></div>' +
+      '</div>';
+  }
+
+  // Upload via intake endpoint
+  var formData = new FormData();
+  for (var j = 0; j < files.length; j++) {
+    formData.append('documents', files[j]);
+  }
+
+  // Update status to processing
+  for (var k = 0; k < files.length; k++) {
+    var item = document.getElementById('intakeFile' + k);
+    if (item) {
+      item.querySelector('.file-status').className = 'file-status processing';
+      item.querySelector('.file-status').textContent = 'Обработка...';
+      item.querySelector('.progress-bar-fill').className = 'progress-bar-fill processing';
+    }
+  }
+
+  try {
+    var res = await apiFetch('/api/cases/intake', {
+      method: 'POST',
+      body: formData
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Грешка');
+
+    intakeCaseId = data.case_id;
+    intakeJobIds = data.job_ids || [];
+
+    showToast('success', 'Документите са качени. AI обработка...');
+
+    // Poll for jobs
+    pollIntakeJobs();
+  } catch (e) {
+    showToast('error', e.message);
+    // Mark all as failed
+    for (var m = 0; m < files.length; m++) {
+      var item2 = document.getElementById('intakeFile' + m);
+      if (item2) {
+        item2.querySelector('.file-status').className = 'file-status failed';
+        item2.querySelector('.file-status').textContent = 'Грешка';
+        item2.querySelector('.progress-bar-fill').className = 'progress-bar-fill failed';
+      }
+    }
+  }
+}
+
+function setPipelineStep(step, state) {
+  var el = document.getElementById('pipe' + step.charAt(0).toUpperCase() + step.slice(1));
+  if (!el) {
+    // Map step names to element ids
+    var idMap = { ocr: 'pipeOcr', classify: 'pipeClassify', complete: 'pipeComplete' };
+    el = document.getElementById(idMap[step]);
+  }
+  if (!el) return;
+  el.className = 'pipeline-step' + (state ? ' ' + state : '');
+}
+
+function pollIntakeJobs() {
+  if (intakePollingTimer) clearInterval(intakePollingTimer);
+  var ocrDone = false;
+  var classifyDone = false;
+  var completeDone = false;
+
+  intakePollingTimer = setInterval(async function() {
+    if (!intakeCaseId) return;
+
+    try {
+      var data = await apiJson('/api/cases/' + intakeCaseId + '/jobs');
+      if (!data.success) return;
+
+      var jobs = data.jobs || [];
+      var ocrJobs = jobs.filter(function(j) { return j.job_type === 'ocr_extraction'; });
+      var classifyJobs = jobs.filter(function(j) { return j.job_type === 'classification'; });
+      var completeJobs = jobs.filter(function(j) { return j.job_type === 'completeness_check'; });
+
+      // Update file statuses
+      var allOcrDone = ocrJobs.length > 0 && ocrJobs.every(function(j) { return j.status === 'completed' || j.status === 'failed'; });
+      if (allOcrDone && !ocrDone) {
+        ocrDone = true;
+        setPipelineStep('ocr', 'done');
+        setPipelineStep('classify', 'active');
+        // Mark files complete
+        var fileItems = document.querySelectorAll('.upload-progress-item');
+        fileItems.forEach(function(item, idx) {
+          var ocrJob = ocrJobs[idx];
+          if (ocrJob && ocrJob.status === 'completed') {
+            item.querySelector('.file-status').className = 'file-status completed';
+            item.querySelector('.file-status').textContent = 'Готово';
+            item.querySelector('.progress-bar-fill').className = 'progress-bar-fill completed';
+          } else if (ocrJob && ocrJob.status === 'failed') {
+            item.querySelector('.file-status').className = 'file-status failed';
+            item.querySelector('.file-status').textContent = 'Грешка';
+            item.querySelector('.progress-bar-fill').className = 'progress-bar-fill failed';
+          }
+        });
+      }
+
+      var allClassifyDone = classifyJobs.length > 0 && classifyJobs.every(function(j) { return j.status === 'completed' || j.status === 'failed'; });
+      if (allClassifyDone && !classifyDone) {
+        classifyDone = true;
+        setPipelineStep('classify', 'done');
+        setPipelineStep('complete', 'active');
+      }
+
+      var allCompleteDone = completeJobs.length > 0 && completeJobs.every(function(j) { return j.status === 'completed' || j.status === 'failed'; });
+      if (allCompleteDone && !completeDone) {
+        completeDone = true;
+        setPipelineStep('complete', 'done');
+        clearInterval(intakePollingTimer);
+
+        // Load case data and show form
+        showIntakeForm();
+      }
+
+      // If all jobs done (even without completeness)
+      if (ocrDone && classifyJobs.length === 0 && completeJobs.length === 0) {
+        // Might still be waiting for dependent jobs to be created
+        // Check again next cycle
+      }
+
+      // Timeout: if running for more than 60s, stop
+    } catch (e) { /* retry */ }
+  }, 2000);
+}
+
+async function showIntakeForm() {
+  if (!intakeCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + intakeCaseId);
+    if (!data.success) return;
+    var c = data.case_data || data.case || data;
+
+    // Auto-fill form
+    if (c.claim_type) document.getElementById('intClaimType').value = c.claim_type;
+    if (c.policy_type) document.getElementById('intPolicyType').value = c.policy_type;
+    if (c.incident_date) document.getElementById('intIncidentDate').value = c.incident_date;
+    if (c.incident_location) document.getElementById('intIncidentLocation').value = c.incident_location;
+    if (c.incident_description) document.getElementById('intIncidentDesc').value = c.incident_description;
+    if (c.insurer_name) document.getElementById('intInsurer').value = c.insurer_name;
+    if (c.policy_number) document.getElementById('intPolicyNumber').value = c.policy_number;
+    if (c.estimated_amount) document.getElementById('intEstAmount').value = c.estimated_amount;
+    if (c.priority) document.getElementById('intPriority').value = c.priority;
+
+    // Parties
+    var parties = c.parties || [];
+    var claimant = parties.find(function(p) { return p.role === 'claimant'; });
+    if (claimant) {
+      document.getElementById('intClaimantName').value = claimant.name || '';
+      document.getElementById('intClaimantEgn').value = claimant.egn || '';
+      document.getElementById('intClaimantPhone').value = claimant.phone || '';
+      document.getElementById('intClaimantEmail').value = claimant.email || '';
+    }
+
+    // Vehicles
+    var vehicles = c.vehicles || [];
+    var claimantVeh = vehicles.find(function(v) { return v.role === 'claimant_vehicle'; });
+    if (claimantVeh) {
+      document.getElementById('intVehRegNo').value = claimantVeh.reg_no || '';
+      document.getElementById('intVehMakeModel').value = ((claimantVeh.make || '') + ' ' + (claimantVeh.model || '')).trim();
+      document.getElementById('intDamageDesc').value = claimantVeh.damage_description || '';
+    }
+
+    // Show missing docs
+    try {
+      var compData = await apiJson('/api/cases/' + intakeCaseId + '/completeness');
+      if (compData.success && compData.result && compData.result.missing_required && compData.result.missing_required.length) {
+        var missingEl = document.getElementById('intakeMissingDocs');
+        var mhtml = '<div class="completeness-banner missing" style="margin-bottom:20px;">';
+        mhtml += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+        mhtml += '<div><strong>Липсващи документи:</strong><ul style="margin:6px 0 0 16px;font-size:12px;">';
+        compData.result.missing_required.forEach(function(m) {
+          mhtml += '<li>' + escHtml(m.description_bg || DOC_TYPE_LABELS[m.doc_type] || m.doc_type) + ' (нужни: ' + (m.min_needed || 1) + ', налични: ' + (m.have || 0) + ')</li>';
+        });
+        mhtml += '</ul></div></div>';
+        missingEl.innerHTML = mhtml;
+        missingEl.style.display = '';
+      }
+    } catch (e) { /* skip */ }
+
+    document.getElementById('intakeFormContainer').style.display = '';
+    showToast('success', 'AI обработката е завършена.');
+  } catch (e) { /* skip */ }
+}
+
+async function saveDraft() {
+  if (!intakeCaseId) {
+    showToast('warning', 'Моля качете документи първо.');
+    return;
+  }
+  showToast('success', 'Преписката е запазена като чернова.');
+}
+
+async function createCase() {
+  if (!intakeCaseId) {
+    // Create from scratch (no documents yet)
+    try {
+      var payload = buildIntakePayload();
+      var data = await apiJson('/api/cases', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!data.success) throw new Error(data.error || 'Грешка');
+      intakeCaseId = data.case_id || data.id;
+      showToast('success', 'Преписката е създадена.');
+      navigateTo('workqueue');
+    } catch (e) {
+      showToast('error', e.message);
+    }
+    return;
+  }
+
+  // Update existing intake case with form values
+  try {
+    var payload = buildIntakePayload();
+    var data = await apiJson('/api/cases/' + intakeCaseId, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    showToast('success', 'Преписката е създадена.');
+    resetIntake();
+    navigateTo('workqueue');
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function buildIntakePayload() {
+  return {
+    claim_type: document.getElementById('intClaimType').value,
+    policy_type: document.getElementById('intPolicyType').value,
+    incident_date: document.getElementById('intIncidentDate').value || null,
+    incident_location: document.getElementById('intIncidentLocation').value,
+    incident_description: document.getElementById('intIncidentDesc').value,
+    insurer_name: document.getElementById('intInsurer').value,
+    policy_number: document.getElementById('intPolicyNumber').value,
+    estimated_amount: document.getElementById('intEstAmount').value || null,
+    priority: document.getElementById('intPriority').value,
+    claimant_name: document.getElementById('intClaimantName').value,
+    claimant_egn: document.getElementById('intClaimantEgn').value,
+    claimant_phone: document.getElementById('intClaimantPhone').value,
+    claimant_email: document.getElementById('intClaimantEmail').value,
+    vehicle_reg_no: document.getElementById('intVehRegNo').value,
+    vehicle_make_model: document.getElementById('intVehMakeModel').value,
+    damage_description: document.getElementById('intDamageDesc').value
+  };
+}
+
+function resetIntake() {
+  intakeCaseId = null;
+  intakeJobIds = [];
+  if (intakePollingTimer) clearInterval(intakePollingTimer);
+  document.getElementById('intakeProgressList').innerHTML = '';
+  document.getElementById('intakePipeline').style.display = 'none';
+  document.getElementById('intakeFormContainer').style.display = 'none';
+  document.getElementById('intakeMissingDocs').style.display = 'none';
+  // Clear form fields
+  ['intClaimType','intPolicyType','intIncidentDate','intIncidentLocation','intIncidentDesc',
+   'intInsurer','intPolicyNumber','intClaimantName','intClaimantEgn','intClaimantPhone',
+   'intClaimantEmail','intVehRegNo','intVehMakeModel','intDamageDesc','intEstAmount'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('intPriority').value = 'normal';
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  try {
+    var data = await apiJson('/api/dashboard');
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    var d = data.dashboard || data;
+
+    document.getElementById('kpiOpen').textContent = d.open || 0;
+    document.getElementById('kpiAwaitingDocs').textContent = d.awaiting_docs || d.awaiting_client || 0;
+    document.getElementById('kpiSubmitted').textContent = d.submitted || 0;
+    document.getElementById('kpiOverdue').textContent = d.overdue || 0;
+    document.getElementById('kpiAvgDays').textContent = d.avg_days != null ? d.avg_days : '-';
+
+    // Render charts
+    renderBarChart(d.by_insurer || {});
+    renderDonutChart(d.by_type || {});
+  } catch (e) {
+    showToast('error', 'Грешка при зареждане на таблото: ' + e.message);
+  }
+}
+
+function renderBarChart(byInsurer) {
+  var container = document.getElementById('chartInsurer');
+  var entries = Object.entries(byInsurer);
+  if (!entries.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:20px;">Няма данни.</div>';
+    return;
+  }
+
+  var max = Math.max.apply(null, entries.map(function(e) { return e[1]; }));
+  if (max === 0) max = 1;
+  var barHeight = 28;
+  var gap = 8;
+  var labelWidth = 80;
+  var chartWidth = 400;
+  var svgHeight = entries.length * (barHeight + gap);
+  var colors = ['#1E40AF', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#1D4ED8', '#2563EB'];
+
+  var svg = '<svg width="100%" viewBox="0 0 ' + (chartWidth + labelWidth + 40) + ' ' + svgHeight + '" style="max-width:100%;">';
+  entries.forEach(function(entry, i) {
+    var y = i * (barHeight + gap);
+    var w = (entry[1] / max) * chartWidth;
+    var color = colors[i % colors.length];
+    svg += '<text x="' + labelWidth + '" y="' + (y + barHeight / 2 + 4) + '" text-anchor="end" font-size="11" fill="#475569" font-family="Inter, sans-serif">' + escHtml(entry[0]) + '</text>';
+    svg += '<rect x="' + (labelWidth + 8) + '" y="' + y + '" width="' + w + '" height="' + barHeight + '" rx="4" fill="' + color + '" opacity="0.85"/>';
+    svg += '<text x="' + (labelWidth + 14 + w) + '" y="' + (y + barHeight / 2 + 4) + '" font-size="12" fill="#0F172A" font-weight="600" font-family="Inter, sans-serif">' + entry[1] + '</text>';
+  });
+  svg += '</svg>';
+  container.innerHTML = svg;
+}
+
+function renderDonutChart(byType) {
+  var container = document.getElementById('chartType');
+  var entries = Object.entries(byType);
+  if (!entries.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:20px;">Няма данни.</div>';
+    return;
+  }
+
+  var total = entries.reduce(function(s, e) { return s + e[1]; }, 0);
+  if (total === 0) total = 1;
+  var cx = 80, cy = 80, r = 60, inner = 35;
+  var colors = ['#1E40AF', '#059669', '#F59E0B', '#DC2626', '#7C3AED', '#0369A1'];
+
+  var svg = '<svg width="200" height="200" viewBox="0 0 200 200">';
+  var angle = -90;
+  entries.forEach(function(entry, i) {
+    var pct = entry[1] / total;
+    var sweep = pct * 360;
+    var startAngle = angle * Math.PI / 180;
+    var endAngle = (angle + sweep) * Math.PI / 180;
+
+    var x1 = cx + r * Math.cos(startAngle);
+    var y1 = cy + r * Math.sin(startAngle);
+    var x2 = cx + r * Math.cos(endAngle);
+    var y2 = cy + r * Math.sin(endAngle);
+    var ix1 = cx + inner * Math.cos(endAngle);
+    var iy1 = cy + inner * Math.sin(endAngle);
+    var ix2 = cx + inner * Math.cos(startAngle);
+    var iy2 = cy + inner * Math.sin(startAngle);
+
+    var largeArc = sweep > 180 ? 1 : 0;
+    var d = 'M ' + x1 + ' ' + y1 +
+            ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2 + ' ' + y2 +
+            ' L ' + ix1 + ' ' + iy1 +
+            ' A ' + inner + ' ' + inner + ' 0 ' + largeArc + ' 0 ' + ix2 + ' ' + iy2 + ' Z';
+    svg += '<path d="' + d + '" fill="' + colors[i % colors.length] + '" opacity="0.85"/>';
+    angle += sweep;
+  });
+
+  // Center text
+  svg += '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" font-size="20" font-weight="700" fill="#0F172A" font-family="Inter, sans-serif">' + total + '</text>';
+  svg += '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" font-size="10" fill="#64748B" font-family="Inter, sans-serif">общо</text>';
+  svg += '</svg>';
+
+  // Legend
+  var legend = '<div class="chart-legend">';
+  entries.forEach(function(entry, i) {
+    legend += '<div class="chart-legend-item"><div class="chart-legend-dot" style="background:' + colors[i % colors.length] + ';"></div>' + escHtml(CLAIM_TYPE_LABELS[entry[0]] || entry[0]) + ' (' + entry[1] + ')</div>';
+  });
+  legend += '</div>';
+
+  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;">' + svg + legend + '</div>';
+}
+
+// ===== SETTINGS =====
+async function loadSettings() {
+  // Load users
+  try {
+    var data = await apiJson('/api/auth/me');
+    if (data.success && data.user && data.user.role === 'admin') {
+      // Load user list -- would need a proper endpoint
+    }
+  } catch (e) { /* skip */ }
+
+  // Load current settings
+  try {
+    var data = await apiJson('/api/settings');
+    if (data.success && data.settings) {
+      if (data.settings.company_name) document.getElementById('settingsCompanyName').value = data.settings.company_name;
+      if (data.settings.primary_color) document.getElementById('settingsPrimaryColor').value = data.settings.primary_color;
+      if (data.settings.ai_provider) document.getElementById('settingsAiProvider').value = data.settings.ai_provider;
+    }
+  } catch (e) { /* skip - settings may not exist yet */ }
+
+  // Try to load users for settings page
+  try {
+    var udata = await apiJson('/api/settings/users');
+    if (udata.success && udata.users) {
+      var tbody = document.getElementById('settingsUsersBody');
+      if (!udata.users.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Няма потребители.</td></tr>';
+      } else {
+        var html = '';
+        udata.users.forEach(function(u) {
+          html += '<tr style="cursor:default;">';
+          html += '<td>' + escHtml(u.username) + '</td>';
+          html += '<td>' + escHtml(u.full_name || '---') + '</td>';
+          html += '<td><span class="badge ' + (u.role === 'admin' ? 'badge-priority-high' : 'badge-priority-normal') + '">' + escHtml(u.role === 'admin' ? 'Администратор' : 'Брокер') + '</span></td>';
+          html += '<td style="font-size:12px;color:var(--text-muted);">' + escHtml(formatDate(u.created_at)) + '</td>';
+          html += '</tr>';
+        });
+        tbody.innerHTML = html;
+      }
+    }
+  } catch (e) {
+    document.getElementById('settingsUsersBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Не може да се заредят потребителите.</td></tr>';
+  }
+}
+
+async function saveBranding() {
+  try {
+    var payload = {
+      company_name: document.getElementById('settingsCompanyName').value,
+      primary_color: document.getElementById('settingsPrimaryColor').value
+    };
+
+    // Handle logo upload
+    var logoInput = document.getElementById('settingsLogo');
+    if (logoInput.files.length) {
+      var file = logoInput.files[0];
+      var reader = new FileReader();
+      reader.onload = async function(e) {
+        payload.logo = e.target.result;
+        var data = await apiJson('/api/settings', {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (!data.success) throw new Error(data.error || 'Грешка');
+        showToast('success', 'Брандирането е запазено.');
+        applyBranding(payload);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      var data = await apiJson('/api/settings', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!data.success) throw new Error(data.error || 'Грешка');
+      showToast('success', 'Брандирането е запазено.');
+      applyBranding(payload);
+    }
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+function applyBranding(b) {
+  if (b.primary_color) {
+    document.documentElement.style.setProperty('--primary', b.primary_color);
+    document.documentElement.style.setProperty('--primary-hover', b.primary_color);
+  }
+  if (b.company_name) {
+    document.querySelector('.sidebar-brand-title').textContent = b.company_name;
+    document.title = b.company_name + ' — Застрахователни преписки';
+  }
+}
+
+async function saveAiProvider() {
+  try {
+    var data = await apiJson('/api/settings', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ ai_provider: document.getElementById('settingsAiProvider').value })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+    showToast('success', 'AI доставчикът е запазен.');
+  } catch (e) {
+    showToast('error', e.message);
+  }
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    // Close any open modal
+    document.querySelectorAll('.modal-backdrop.active').forEach(function(m) {
+      m.classList.remove('active');
+    });
+    // If in case detail, go back
+    if (document.getElementById('page-casedetail').classList.contains('active')) {
+      navigateTo('workqueue');
+    }
+  }
+});
+
+// Click outside modal to close
+document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
+  backdrop.addEventListener('click', function(e) {
+    if (e.target === backdrop) backdrop.classList.remove('active');
+  });
+});
+
+// ===== INIT =====
+(async function init() {
+  var authed = await checkAuth();
+  if (!authed) return;
+  initDropZone();
+  loadWorkQueue();
+})();
+</script>
+
+</body>
+</html>
