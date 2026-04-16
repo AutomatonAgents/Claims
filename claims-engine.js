@@ -52,7 +52,6 @@ function getFixture(jobType, context = {}) {
   }
 
   if (!fs.existsSync(fixturePath)) {
-    console.warn(`[claims-engine] Fixture not found: ${fixturePath}, returning minimal fallback`);
     return _getFallbackFixture(jobType, context);
   }
 
@@ -249,8 +248,13 @@ async function classifyCase(caseId) {
 
   // In fixture mode, determine scenario from document types
   if (FIXTURE_MODE === 'force') {
+    const caseRow = db().prepare('SELECT * FROM cases WHERE id = ?').get(caseId);
     const scenario = _inferClassificationScenario(extractions);
-    return getFixture('classification', { scenario });
+    const fixturePath = path.join(FIXTURES_DIR, 'classification', `${scenario}.json`);
+    if (fs.existsSync(fixturePath)) {
+      return getFixture('classification', { scenario, caseRow });
+    }
+    return _buildClassificationFixture(scenario, caseRow);
   }
 
   // Build combined context for AI
@@ -372,7 +376,11 @@ async function checkCompleteness(caseId) {
   // In fixture mode, determine scenario
   if (FIXTURE_MODE === 'force') {
     const scenario = _inferCompletenessScenario(claimType, docCountMap, mergedRequirements);
-    return getFixture('completeness_check', { scenario });
+    const fixturePath = path.join(FIXTURES_DIR, 'completeness', `${scenario}.json`);
+    if (fs.existsSync(fixturePath)) {
+      return getFixture('completeness_check', { scenario, docCountMap, requirements: mergedRequirements });
+    }
+    return _buildCompletenessFixture(docCountMap, mergedRequirements);
   }
 
   // Build AI prompt
@@ -437,6 +445,77 @@ function _inferCompletenessScenario(claimType, docCountMap, requirements) {
 }
 
 // ─── Submission Summary ───────────────────────────────────────────────────────
+
+function _buildClassificationFixture(scenario, caseRow) {
+  const fallback = {
+    claim_type: 'auto_collision',
+    policy_type: caseRow && caseRow.policy_type ? caseRow.policy_type : 'casco',
+    priority: caseRow && caseRow.priority ? caseRow.priority : 'normal',
+    reasoning: 'Автоматична класификация (fixture fallback)'
+  };
+
+  const byScenario = {
+    'auto-collision': { claim_type: 'auto_collision', policy_type: caseRow && caseRow.policy_type ? caseRow.policy_type : 'casco', priority: 'normal' },
+    'auto-theft': { claim_type: 'auto_theft', policy_type: 'casco', priority: 'high' },
+    'auto-glass': { claim_type: 'auto_glass', policy_type: 'casco', priority: 'normal' },
+    'property-fire': { claim_type: 'property_fire', policy_type: 'property', priority: 'high' },
+    'property-flood': { claim_type: 'property_flood', policy_type: 'property', priority: 'normal' },
+    'property-theft': { claim_type: 'property_theft', policy_type: 'property', priority: 'high' }
+  };
+
+  return {
+    ...fallback,
+    ...(byScenario[scenario] || {}),
+    reasoning: 'Автоматична класификация (fixture fallback)'
+  };
+}
+
+function _buildCompletenessFixture(docCountMap = {}, requirements = []) {
+  const requirementList = Array.isArray(requirements) ? requirements : [];
+  const missingRequired = requirementList
+    .filter(req => req.requirement === 'required')
+    .filter(req => (docCountMap[req.doc_type] || 0) < (req.min_count || 1))
+    .map(req => ({
+      doc_type: req.doc_type,
+      description_bg: req.description_bg,
+      min_needed: req.min_count || 1,
+      have: docCountMap[req.doc_type] || 0,
+      suggestion: 'Изискайте документа от клиента'
+    }));
+
+  const missingConditional = requirementList
+    .filter(req => req.requirement === 'conditional')
+    .filter(req => (docCountMap[req.doc_type] || 0) < (req.min_count || 1))
+    .map(req => ({
+      doc_type: req.doc_type,
+      description_bg: req.description_bg,
+      condition: req.condition_description || '',
+      likely_needed: false,
+      reasoning: 'Нужен е само ако условието е изпълнено'
+    }));
+
+  const missingOptional = requirementList
+    .filter(req => req.requirement === 'optional')
+    .filter(req => (docCountMap[req.doc_type] || 0) < (req.min_count || 1))
+    .map(req => ({
+      doc_type: req.doc_type,
+      description_bg: req.description_bg,
+      benefit: 'Подсилва доказателствата по щетата'
+    }));
+
+  const readyToSubmit = missingRequired.length === 0;
+  return {
+    complete: readyToSubmit,
+    missing_required: missingRequired,
+    missing_conditional: missingConditional,
+    missing_optional: missingOptional,
+    inconsistencies: [],
+    next_recommended_action: readyToSubmit
+      ? 'Случаят е готов за изпращане към застрахователя'
+      : 'Изискайте липсващите задължителни документи от клиента',
+    ready_to_submit: readyToSubmit
+  };
+}
 
 const SUBMISSION_SUMMARY_PROMPT = `Generate structured summary for insurer submission package.
 Return JSON only:

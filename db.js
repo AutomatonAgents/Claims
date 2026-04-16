@@ -15,6 +15,13 @@ function getDB() {
   return db;
 }
 
+function closeDB() {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
 // ─── Schema ────────────────────────────────────────────────────────────────
 
 function initDB() {
@@ -440,21 +447,110 @@ function initDB() {
     seedCases();
   }
 
+  normalizeDemoData();
+
   return db;
+}
+
+function normalizeDemoData() {
+  const db = getDB();
+  const case1 = db.prepare('SELECT id, created_by FROM cases WHERE case_number = ?').get('AMR-2026-0001');
+  if (!case1) return;
+
+  const expertAssessment = db.prepare(
+    `SELECT id FROM documents WHERE case_id = ? AND doc_type = 'expert_assessment' LIMIT 1`
+  ).get(case1.id);
+
+  if (!expertAssessment) {
+    db.prepare(`
+      INSERT INTO documents (case_id, filename, original_name, mimetype, size_bytes, doc_type, ocr_confidence, uploaded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      case1.id,
+      'c1_expert.pdf',
+      'ocenka_veshto_lice.pdf',
+      'application/pdf',
+      520000,
+      'expert_assessment',
+      0.91,
+      case1.created_by || 1
+    );
+  }
+
+  db.prepare(`
+    UPDATE cases
+    SET next_action = ?, ai_notes = NULL, updated_at = datetime('now')
+    WHERE id = ?
+  `).run('Подгответе пакет за изпращане до Алианц', case1.id);
+
+  db.prepare(`
+    DELETE FROM processing_jobs
+    WHERE case_id = ? AND job_type IN ('classification', 'completeness_check')
+  `).run(case1.id);
 }
 
 // ─── Query Helpers ─────────────────────────────────────────────────────────
 
 // ── Cases ──
 
+function splitStatusFilter(status) {
+  if (!status) return [];
+  if (Array.isArray(status)) {
+    return status.flatMap(splitStatusFilter);
+  }
+  return String(status)
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
+function calculateMissingDocsCount(caseRow) {
+  if (!caseRow || !caseRow.id || !caseRow.claim_type) return 0;
+
+  const requirements = getDocumentRequirements(
+    caseRow.claim_type,
+    caseRow.policy_type || null,
+    caseRow.insurer_name || null
+  ).filter(req => req.requirement === 'required');
+
+  if (!requirements.length) return 0;
+
+  const counts = {};
+  for (const doc of getDocuments(caseRow.id)) {
+    counts[doc.doc_type] = (counts[doc.doc_type] || 0) + 1;
+  }
+
+  return requirements.reduce((missing, req) => {
+    const have = counts[req.doc_type] || 0;
+    return missing + (have >= (req.min_count || 1) ? 0 : 1);
+  }, 0);
+}
+
+function enrichCaseRows(rows) {
+  return rows.map(row => {
+    const assigneeName = row.assignee_name || row.assigned_to_name || null;
+    return {
+      ...row,
+      assignee_name: assigneeName,
+      assigned_name: assigneeName,
+      missing_docs_count: calculateMissingDocsCount(row)
+    };
+  });
+}
+
 function getCases(filters = {}) {
   const db = getDB();
   let where = ['c.is_deleted = 0'];
   const params = [];
 
-  if (filters.status) {
+  const statuses = splitStatusFilter(filters.status);
+  if (statuses.length === 1) {
     where.push('c.status = ?');
-    params.push(filters.status);
+    params.push(statuses[0]);
+  } else if (statuses.length > 1) {
+    const placeholders = statuses.map(() => '?').join(', ');
+    where.push(`c.status IN (${placeholders})`);
+    params.push(...statuses);
   }
   if (filters.claim_type) {
     where.push('c.claim_type = ?');
@@ -484,13 +580,13 @@ function getCases(filters = {}) {
     params.push(filters.date_to);
   }
   if (filters.search) {
-    where.push('(c.case_number LIKE ? OR c.insurer_claim_number LIKE ?)');
+    where.push('(c.case_number LIKE ? OR c.insurer_claim_number LIKE ? OR c.incident_description LIKE ?)');
     const term = `%${filters.search}%`;
-    params.push(term, term);
+    params.push(term, term, term);
   }
 
   const sql = `
-    SELECT c.*, u.full_name AS assigned_to_name,
+    SELECT c.*, u.full_name AS assignee_name,
       (SELECT COUNT(*) FROM documents d WHERE d.case_id = c.id) AS doc_count,
       (SELECT p.name FROM parties p WHERE p.case_id = c.id AND p.role IN ('insured','claimant') LIMIT 1) AS claimant_name
     FROM cases c
@@ -502,7 +598,7 @@ function getCases(filters = {}) {
       c.next_action_due_date ASC,
       c.created_at ASC
   `;
-  return db.prepare(sql).all(...params);
+  return enrichCaseRows(db.prepare(sql).all(...params));
 }
 
 function getCase(id) {
@@ -878,9 +974,9 @@ function getWorkQueue(userId) {
     params.push(userId);
   }
 
-  return db.prepare(`
+  const rows = db.prepare(`
     SELECT c.*,
-      u.full_name AS assigned_to_name,
+      u.full_name AS assignee_name,
       (SELECT COUNT(*) FROM documents d WHERE d.case_id = c.id) AS doc_count,
       (SELECT p.name FROM parties p WHERE p.case_id = c.id AND p.role IN ('insured','claimant') LIMIT 1) AS claimant_name,
       CASE
@@ -903,6 +999,8 @@ function getWorkQueue(userId) {
       c.next_action_due_date ASC,
       c.created_at ASC
   `).all(...params);
+
+  return enrichCaseRows(rows);
 }
 
 function getDashboardKPIs(userId) {
@@ -927,6 +1025,21 @@ function getDashboardKPIs(userId) {
   const submitted = db.prepare(`
     SELECT COUNT(*) AS cnt FROM cases
     WHERE is_deleted = 0 AND status IN ('submitted_to_insurer','awaiting_insurer_decision','insurer_requested_info') ${userFilter}
+  `).get(...params);
+
+  const actionNeeded = db.prepare(`
+    SELECT COUNT(*) AS cnt FROM cases
+    WHERE is_deleted = 0 AND status IN ('received','validated_by_broker','insurer_requested_info') ${userFilter}
+  `).get(...params);
+
+  const awaitingInsurer = db.prepare(`
+    SELECT COUNT(*) AS cnt FROM cases
+    WHERE is_deleted = 0 AND status IN ('submitted_to_insurer','awaiting_insurer_decision') ${userFilter}
+  `).get(...params);
+
+  const closed = db.prepare(`
+    SELECT COUNT(*) AS cnt FROM cases
+    WHERE is_deleted = 0 AND status IN ('approved_by_insurer','partially_approved','rejected_by_insurer','paid','closed') ${userFilter}
   `).get(...params);
 
   const overdue = db.prepare(`
@@ -958,14 +1071,36 @@ function getDashboardKPIs(userId) {
     GROUP BY status ORDER BY cnt DESC
   `).all(...params);
 
+  const byInsurerMap = Object.fromEntries(
+    byInsurer
+      .filter(row => row.insurer_name)
+      .map(row => [row.insurer_name, row.cnt])
+  );
+
+  const byTypeMap = Object.fromEntries(
+    byType
+      .filter(row => row.claim_type)
+      .map(row => [row.claim_type, row.cnt])
+  );
+
   return {
     open_cases: open.cnt,
+    open: open.cnt,
     awaiting_client_docs: awaitingDocs.cnt,
+    awaiting_docs: awaitingDocs.cnt,
+    awaiting_client: awaitingDocs.cnt,
     submitted_to_insurer: submitted.cnt,
+    submitted: submitted.cnt,
     overdue: overdue.cnt,
     avg_processing_days: avgDays.avg_days ? Math.round(avgDays.avg_days * 10) / 10 : 0,
+    avg_days: avgDays.avg_days ? Math.round(avgDays.avg_days * 10) / 10 : 0,
+    action_needed: actionNeeded.cnt,
+    awaiting_insurer: awaitingInsurer.cnt,
+    closed: closed.cnt,
     by_insurer: byInsurer,
+    by_insurer_map: byInsurerMap,
     by_type: byType,
+    by_type_map: byTypeMap,
     by_status: byStatus
   };
 }
@@ -1013,6 +1148,7 @@ function addAuditLog(data) {
 
 module.exports = {
   getDB,
+  closeDB,
   initDB,
 
   // Cases

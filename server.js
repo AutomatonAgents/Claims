@@ -119,6 +119,134 @@ function saveFileToDisk(file) {
   return filename;
 }
 
+function getActorLabel(req) {
+  if (!req || !req.user) return 'system';
+  return req.user.full_name || req.user.name || req.user.username || req.user.email || 'system';
+}
+
+function parseVehicleMakeModel(makeModel) {
+  const normalized = String(makeModel || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) return { make: null, model: null };
+
+  const parts = normalized.split(' ');
+  if (parts.length === 1) {
+    return { make: parts[0], model: null };
+  }
+
+  return {
+    make: parts[0],
+    model: parts.slice(1).join(' ')
+  };
+}
+
+function syncCaseSideEntities(caseId, payload) {
+  const d = db.getDB();
+
+  const hasClaimantData = ['claimant_name', 'claimant_egn', 'claimant_phone', 'claimant_email']
+    .some(field => payload[field] !== undefined);
+  if (hasClaimantData) {
+    const existingParty = d.prepare(`
+      SELECT * FROM parties
+      WHERE case_id = ? AND role IN ('claimant', 'insured')
+      ORDER BY CASE WHEN role = 'claimant' THEN 0 ELSE 1 END, id ASC
+      LIMIT 1
+    `).get(caseId);
+
+    const partyValues = {
+      name: payload.claimant_name,
+      egn: payload.claimant_egn,
+      phone: payload.claimant_phone,
+      email: payload.claimant_email
+    };
+
+    if (existingParty) {
+      const updates = [];
+      const values = [];
+      for (const [key, value] of Object.entries(partyValues)) {
+        if (value !== undefined) {
+          updates.push(`${key} = ?`);
+          values.push(value || null);
+        }
+      }
+      if (updates.length > 0) {
+        values.push(existingParty.id);
+        d.prepare(`UPDATE parties SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+      }
+    } else if (partyValues.name) {
+      d.prepare(`
+        INSERT INTO parties (case_id, role, name, egn, phone, email)
+        VALUES (?, 'claimant', ?, ?, ?, ?)
+      `).run(caseId, partyValues.name, partyValues.egn || null, partyValues.phone || null, partyValues.email || null);
+    }
+  }
+
+  const hasVehicleData = ['vehicle_reg_no', 'vehicle_make_model', 'damage_description']
+    .some(field => payload[field] !== undefined);
+  if (hasVehicleData) {
+    const existingVehicle = d.prepare(`
+      SELECT * FROM vehicles
+      WHERE case_id = ? AND role = 'claimant_vehicle'
+      ORDER BY id ASC
+      LIMIT 1
+    `).get(caseId);
+    const parsedVehicle = parseVehicleMakeModel(payload.vehicle_make_model);
+
+    const vehicleValues = {
+      reg_no: payload.vehicle_reg_no,
+      make: payload.vehicle_make_model !== undefined ? parsedVehicle.make : undefined,
+      model: payload.vehicle_make_model !== undefined ? parsedVehicle.model : undefined,
+      damage_description: payload.damage_description
+    };
+
+    if (existingVehicle) {
+      const updates = [];
+      const values = [];
+      for (const [key, value] of Object.entries(vehicleValues)) {
+        if (value !== undefined) {
+          updates.push(`${key} = ?`);
+          values.push(value || null);
+        }
+      }
+      if (updates.length > 0) {
+        values.push(existingVehicle.id);
+        d.prepare(`UPDATE vehicles SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+      }
+    } else if (vehicleValues.reg_no || vehicleValues.make || vehicleValues.model || vehicleValues.damage_description) {
+      d.prepare(`
+        INSERT INTO vehicles (case_id, role, reg_no, make, model, damage_description)
+        VALUES (?, 'claimant_vehicle', ?, ?, ?, ?)
+      `).run(
+        caseId,
+        vehicleValues.reg_no || null,
+        vehicleValues.make || null,
+        vehicleValues.model || null,
+        vehicleValues.damage_description || null
+      );
+    }
+  }
+}
+
+function buildRequirementStatus(caseRow, documents) {
+  if (!caseRow || !caseRow.claim_type) return [];
+
+  const requirements = db.getDocumentRequirements(
+    caseRow.claim_type,
+    caseRow.policy_type || null,
+    caseRow.insurer_name || null
+  );
+
+  const docCountByType = {};
+  for (const doc of documents) {
+    docCountByType[doc.doc_type] = (docCountByType[doc.doc_type] || 0) + 1;
+  }
+
+  return requirements.map(req => ({
+    ...req,
+    uploaded_count: docCountByType[req.doc_type] || 0,
+    satisfied: (docCountByType[req.doc_type] || 0) >= (req.min_count || 1)
+  }));
+}
+
 /** Insert classification + completeness jobs with dedupe */
 function insertPipelineJobs(caseId) {
   const d = db.getDB();
@@ -294,9 +422,11 @@ app.post('/api/cases', (req, res) => {
     );
 
     // Timeline entry
+    syncCaseSideEntities(r.lastInsertRowid, req.body);
+
     d.prepare(
       `INSERT INTO case_timeline (case_id, action, new_status, actor, notes) VALUES (?, 'case_created', 'received', ?, ?)`
-    ).run(r.lastInsertRowid, req.user.name || req.user.email || 'system', 'Case created manually');
+    ).run(r.lastInsertRowid, getActorLabel(req), 'Case created manually');
 
     res.status(201).json({ success: true, case_id: r.lastInsertRowid, case_number: caseNumber });
   } catch (err) {
@@ -370,49 +500,24 @@ app.post('/api/cases/intake', upload.array('documents', 20), (req, res) => {
 // GET /api/cases — list with filters
 app.get('/api/cases', (req, res) => {
   try {
-    const d = db.getDB();
     const { status, claim_type, assignee, insurer, overdue, search, limit, offset } = req.query;
 
-    let sql = `SELECT c.*, u.full_name as assignee_name FROM cases c LEFT JOIN users u ON c.assigned_to = u.id WHERE c.is_deleted = 0`;
-    const params = [];
+    let cases = db.getCases({
+      status,
+      claim_type,
+      assigned_to: assignee ? Number(assignee) : undefined,
+      insurer_name: insurer,
+      overdue: overdue === 'true' || overdue === '1',
+      search
+    });
 
-    if (status) {
-      sql += ` AND c.status = ?`;
-      params.push(status);
+    if (offset) {
+      cases = cases.slice(Number(offset));
     }
-    if (claim_type) {
-      sql += ` AND c.claim_type = ?`;
-      params.push(claim_type);
-    }
-    if (assignee) {
-      sql += ` AND c.assigned_to = ?`;
-      params.push(Number(assignee));
-    }
-    if (insurer) {
-      sql += ` AND c.insurer_name = ?`;
-      params.push(insurer);
-    }
-    if (overdue === 'true') {
-      sql += ` AND c.next_action_due_date < date('now') AND c.status NOT IN ('closed', 'paid')`;
-    }
-    if (search) {
-      sql += ` AND (c.case_number LIKE ? OR c.insurer_claim_number LIKE ? OR c.incident_description LIKE ?)`;
-      const s = `%${search}%`;
-      params.push(s, s, s);
-    }
-
-    sql += ` ORDER BY c.created_at DESC`;
-
     if (limit) {
-      sql += ` LIMIT ?`;
-      params.push(Number(limit));
-      if (offset) {
-        sql += ` OFFSET ?`;
-        params.push(Number(offset));
-      }
+      cases = cases.slice(0, Number(limit));
     }
 
-    const cases = d.prepare(sql).all(...params);
     res.json({ success: true, cases });
   } catch (err) {
     console.error('[LIST CASES ERROR]', err);
@@ -440,40 +545,7 @@ app.get('/api/cases/:id', (req, res) => {
     // Documents with requirement status
     const documents = d.prepare(`SELECT * FROM documents WHERE case_id = ? ORDER BY uploaded_at DESC`).all(caseId);
 
-    // Document requirements for this claim type
-    let requirements = [];
-    if (caseRow.claim_type) {
-      let reqSql = `SELECT * FROM document_requirements WHERE claim_type = ?`;
-      const reqParams = [caseRow.claim_type];
-
-      if (caseRow.policy_type) {
-        reqSql += ` AND (policy_type IS NULL OR policy_type = ?)`;
-        reqParams.push(caseRow.policy_type);
-      } else {
-        reqSql += ` AND policy_type IS NULL`;
-      }
-
-      // Include insurer-specific and general
-      if (caseRow.insurer_name) {
-        reqSql += ` AND (insurer_specific IS NULL OR insurer_specific = ?)`;
-        reqParams.push(caseRow.insurer_name);
-      } else {
-        reqSql += ` AND insurer_specific IS NULL`;
-      }
-
-      requirements = d.prepare(reqSql).all(...reqParams);
-
-      // Build requirement status: count uploaded vs min_count
-      const docCountByType = {};
-      for (const doc of documents) {
-        docCountByType[doc.doc_type] = (docCountByType[doc.doc_type] || 0) + 1;
-      }
-      requirements = requirements.map(r => ({
-        ...r,
-        uploaded_count: docCountByType[r.doc_type] || 0,
-        satisfied: (docCountByType[r.doc_type] || 0) >= r.min_count,
-      }));
-    }
+    const requirements = buildRequirementStatus(caseRow, documents);
 
     // Timeline
     const timeline = d.prepare(`SELECT * FROM case_timeline WHERE case_id = ? ORDER BY created_at DESC`).all(caseId);
@@ -537,9 +609,11 @@ app.put('/api/cases/:id', (req, res) => {
     d.prepare(`UPDATE cases SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
 
     // Timeline entry for update
+    syncCaseSideEntities(caseId, req.body);
+
     d.prepare(
       `INSERT INTO case_timeline (case_id, action, actor, notes) VALUES (?, 'case_updated', ?, ?)`
-    ).run(caseId, req.user.name || req.user.email || 'system', `Updated fields: ${Object.keys(req.body).filter(k => updatable.includes(k)).join(', ')}`);
+    ).run(caseId, getActorLabel(req), `Updated fields: ${Object.keys(req.body).filter(k => updatable.includes(k) || ['claimant_name', 'claimant_egn', 'claimant_phone', 'claimant_email', 'vehicle_reg_no', 'vehicle_make_model', 'damage_description'].includes(k)).join(', ')}`);
 
     res.json({ success: true, case_id: caseId });
   } catch (err) {
@@ -669,6 +743,31 @@ app.get('/api/cases/:id/timeline', (req, res) => {
   }
 });
 
+// POST /api/cases/:id/timeline
+app.post('/api/cases/:id/timeline', (req, res) => {
+  try {
+    const d = db.getDB();
+    const caseId = Number(req.params.id);
+    const caseRow = d.prepare(`SELECT * FROM cases WHERE id = ? AND is_deleted = 0`).get(caseId);
+    if (!caseRow) return res.status(404).json({ success: false, error: 'Case not found' });
+
+    const action = req.body.action || 'note';
+    const notes = req.body.notes;
+    if (!notes) {
+      return res.status(400).json({ success: false, error: 'notes is required' });
+    }
+
+    const result = d.prepare(
+      `INSERT INTO case_timeline (case_id, action, actor, notes) VALUES (?, ?, ?, ?)`
+    ).run(caseId, action, getActorLabel(req), notes);
+
+    res.status(201).json({ success: true, timeline_id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('[ADD TIMELINE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // POST /api/cases/:id/assign
 app.post('/api/cases/:id/assign', (req, res) => {
   try {
@@ -776,38 +875,7 @@ app.get('/api/cases/:id/documents', (req, res) => {
 
     const documents = d.prepare(`SELECT * FROM documents WHERE case_id = ? ORDER BY uploaded_at DESC`).all(caseId);
 
-    // Count by doc_type
-    const docCountByType = {};
-    for (const doc of documents) {
-      docCountByType[doc.doc_type] = (docCountByType[doc.doc_type] || 0) + 1;
-    }
-
-    // Requirements with status
-    let requirements = [];
-    if (caseRow.claim_type) {
-      let reqSql = `SELECT * FROM document_requirements WHERE claim_type = ?`;
-      const reqParams = [caseRow.claim_type];
-
-      if (caseRow.policy_type) {
-        reqSql += ` AND (policy_type IS NULL OR policy_type = ?)`;
-        reqParams.push(caseRow.policy_type);
-      } else {
-        reqSql += ` AND policy_type IS NULL`;
-      }
-
-      if (caseRow.insurer_name) {
-        reqSql += ` AND (insurer_specific IS NULL OR insurer_specific = ?)`;
-        reqParams.push(caseRow.insurer_name);
-      } else {
-        reqSql += ` AND insurer_specific IS NULL`;
-      }
-
-      requirements = d.prepare(reqSql).all(...reqParams).map(r => ({
-        ...r,
-        uploaded_count: docCountByType[r.doc_type] || 0,
-        satisfied: (docCountByType[r.doc_type] || 0) >= r.min_count,
-      }));
-    }
+    const requirements = buildRequirementStatus(caseRow, documents);
 
     res.json({ success: true, documents, requirements });
   } catch (err) {
@@ -829,15 +897,32 @@ app.get('/api/cases/:id/completeness', (req, res) => {
     const latest = d.prepare(
       `SELECT * FROM processing_jobs WHERE case_id = ? AND job_type = 'completeness_check' AND status = 'completed' ORDER BY completed_at DESC LIMIT 1`
     ).get(caseId);
+    const latestDocument = d.prepare(
+      `SELECT MAX(uploaded_at) AS uploaded_at FROM documents WHERE case_id = ?`
+    ).get(caseId);
+    const completenessIsStale = !!(
+      latest
+      && latest.completed_at
+      && latestDocument
+      && latestDocument.uploaded_at
+      && latest.completed_at < latestDocument.uploaded_at
+    );
 
-    if (latest && latest.result) {
+    if (latest && latest.result && !completenessIsStale) {
       let parsed;
       try {
         parsed = JSON.parse(latest.result);
       } catch (_) {
         parsed = latest.result;
       }
-      return res.json({ success: true, completeness: parsed, job_id: latest.id, completed_at: latest.completed_at });
+      return res.json({
+        success: true,
+        completeness: parsed,
+        result: parsed,
+        job_id: latest.id,
+        status: 'completed',
+        completed_at: latest.completed_at
+      });
     }
 
     // Check if there's an active job
@@ -846,14 +931,14 @@ app.get('/api/cases/:id/completeness', (req, res) => {
     ).get(caseId);
 
     if (active) {
-      return res.json({ success: true, completeness: null, job_id: active.id, status: 'processing', message: 'Completeness check in progress' });
+      return res.json({ success: true, completeness: null, result: null, job_id: active.id, status: 'processing', message: 'Completeness check in progress' });
     }
 
     // Trigger new completeness check
     const pipelineJobIds = insertPipelineJobs(caseId);
     const newJobId = pipelineJobIds.length > 0 ? pipelineJobIds[pipelineJobIds.length - 1] : null;
 
-    res.json({ success: true, completeness: null, job_id: newJobId, status: 'queued', message: 'Completeness check triggered' });
+    res.json({ success: true, completeness: null, result: null, job_id: newJobId, status: 'queued', message: 'Completeness check triggered' });
   } catch (err) {
     console.error('[COMPLETENESS ERROR]', err);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -861,7 +946,7 @@ app.get('/api/cases/:id/completeness', (req, res) => {
 });
 
 // GET /api/cases/:id/submission-package — generate insurer submission summary
-app.get('/api/cases/:id/submission-package', (req, res) => {
+app.get('/api/cases/:id/submission-package', async (req, res) => {
   try {
     const d = db.getDB();
     const caseId = Number(req.params.id);
@@ -869,21 +954,12 @@ app.get('/api/cases/:id/submission-package', (req, res) => {
     const caseRow = d.prepare(`SELECT * FROM cases WHERE id = ? AND is_deleted = 0`).get(caseId);
     if (!caseRow) return res.status(404).json({ success: false, error: 'Case not found' });
 
-    const parties = d.prepare(`SELECT * FROM parties WHERE case_id = ?`).all(caseId);
-    const vehicles = d.prepare(`SELECT * FROM vehicles WHERE case_id = ?`).all(caseId);
-    const documents = d.prepare(`SELECT * FROM documents WHERE case_id = ?`).all(caseId);
-
-    const summary = claimsEngine.generateSubmissionSummary({
-      caseData: caseRow,
-      parties,
-      vehicles,
-      documents,
-    });
+    const summary = await claimsEngine.generateSubmissionSummary(caseId);
 
     // Timeline entry
     d.prepare(
       `INSERT INTO case_timeline (case_id, action, actor, notes) VALUES (?, 'submission_package_generated', ?, 'Insurer submission package generated')`
-    ).run(caseId, req.user.name || req.user.email || 'system');
+    ).run(caseId, getActorLabel(req));
 
     res.json({ success: true, submission_package: summary });
   } catch (err) {
@@ -909,7 +985,7 @@ app.get('/api/jobs/:id', (req, res) => {
       try { job.result = JSON.parse(job.result); } catch (_) {}
     }
 
-    res.json({ success: true, job });
+    res.json({ success: true, job, status: job.status, result: job.result, job_type: job.job_type });
   } catch (err) {
     console.error('[GET JOB ERROR]', err);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -1102,36 +1178,13 @@ app.post('/api/cases/:id/payments', (req, res) => {
 // GET /api/dashboard — KPIs
 app.get('/api/dashboard', (req, res) => {
   try {
-    const d = db.getDB();
-
-    const openCount = d.prepare(
-      `SELECT COUNT(*) as count FROM cases WHERE is_deleted = 0 AND status NOT IN ('closed', 'paid')`
-    ).get().count;
-
-    const awaitingDocsCount = d.prepare(
-      `SELECT COUNT(*) as count FROM cases WHERE is_deleted = 0 AND status = 'awaiting_client_docs'`
-    ).get().count;
-
-    const submittedCount = d.prepare(
-      `SELECT COUNT(*) as count FROM cases WHERE is_deleted = 0 AND status = 'submitted_to_insurer'`
-    ).get().count;
-
-    const overdueCount = d.prepare(
-      `SELECT COUNT(*) as count FROM cases WHERE is_deleted = 0 AND next_action_due_date < date('now') AND status NOT IN ('closed', 'paid')`
-    ).get().count;
-
-    const avgDays = d.prepare(
-      `SELECT AVG(JULIANDAY(COALESCE(closed_at, datetime('now'))) - JULIANDAY(created_at)) as avg_days FROM cases WHERE is_deleted = 0`
-    ).get().avg_days;
-
+    const dashboard = db.getDashboardKPIs();
     res.json({
       success: true,
       dashboard: {
-        open: openCount,
-        awaiting_docs: awaitingDocsCount,
-        submitted: submittedCount,
-        overdue: overdueCount,
-        avg_days: avgDays ? Math.round(avgDays * 10) / 10 : 0,
+        ...dashboard,
+        by_insurer: dashboard.by_insurer_map,
+        by_type: dashboard.by_type_map
       },
     });
   } catch (err) {
@@ -1143,22 +1196,7 @@ app.get('/api/dashboard', (req, res) => {
 // GET /api/dashboard/workqueue — cases sorted by urgency
 app.get('/api/dashboard/workqueue', (req, res) => {
   try {
-    const d = db.getDB();
-    const cases = d.prepare(`
-      SELECT c.*, u.full_name as assignee_name,
-        CASE
-          WHEN c.next_action_due_date < date('now') AND c.status NOT IN ('closed', 'paid') THEN 1
-          ELSE 0
-        END as is_overdue
-      FROM cases c
-      LEFT JOIN users u ON c.assigned_to = u.id
-      WHERE c.is_deleted = 0 AND c.status NOT IN ('closed', 'paid')
-      ORDER BY
-        is_overdue DESC,
-        c.next_action_due_date ASC NULLS LAST,
-        c.created_at ASC
-    `).all();
-
+    const cases = db.getWorkQueue();
     res.json({ success: true, cases });
   } catch (err) {
     console.error('[WORKQUEUE ERROR]', err);

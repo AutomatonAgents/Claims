@@ -169,8 +169,17 @@ function authMiddleware(req, res, next) {
 
   // Skip auth in test mode (disabled in production)
   if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
-    const fallback = db.getUserByEmail('saldo@automaton.bg') || { id: 1, email: 'saldo@automaton.bg', name: 'Admin', role: 'admin' };
-    req.user = { id: fallback.id, email: fallback.email, name: fallback.name || fallback.email, role: fallback.role || 'admin' };
+    const fallback = db.getUserByEmail('saldo@automaton.bg')
+      || db.getUserByUsername('admin')
+      || { id: 1, username: 'admin', full_name: 'Admin', role: 'admin' };
+    req.user = {
+      id: fallback.id,
+      username: fallback.username || fallback.email || 'admin',
+      email: fallback.email || fallback.username || 'admin',
+      full_name: fallback.full_name || fallback.name || fallback.username || fallback.email || 'Admin',
+      name: fallback.full_name || fallback.name || fallback.username || fallback.email || 'Admin',
+      role: fallback.role || 'admin'
+    };
     return next();
   }
 
@@ -193,7 +202,14 @@ function authMiddleware(req, res, next) {
     if (!user || user.is_active === 0) {
       return res.status(401).json({ success: false, error: 'Account disabled' });
     }
-    req.user = { id: user.id, email: user.email, name: user.name, role: user.role || 'user' };
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email || user.username,
+      full_name: user.full_name || user.name || user.username,
+      name: user.full_name || user.name || user.username,
+      role: user.role || 'user'
+    };
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: 'Invalid token' });
