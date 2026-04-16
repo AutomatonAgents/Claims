@@ -221,6 +221,9 @@ async function executeOCR(job) {
     // Update document with extracted data
     _updateDocumentFromOCR(doc.id, result);
 
+    // Hydrate case/parties/vehicles from fixture data too
+    _hydrateFromOCR(job.case_id, result);
+
     return result;
   }
 
@@ -234,7 +237,133 @@ async function executeOCR(job) {
   // Update document with OCR results
   _updateDocumentFromOCR(doc.id, result);
 
+  // Hydrate case/parties/vehicles from extracted fields
+  _hydrateFromOCR(job.case_id, result);
+
   return result;
+}
+
+/**
+ * Hydrate parties, vehicles and case-level fields from OCR extraction.
+ */
+function _hydrateFromOCR(caseId, result) {
+  if (!caseId || !result || !result.extracted_fields) return;
+
+  const d = getDb();
+  const fields = result.extracted_fields;
+
+  // --- Case-level fields (only fill blanks, don't overwrite) ---
+  const caseRow = d.prepare('SELECT * FROM cases WHERE id = ?').get(caseId);
+  if (!caseRow) return;
+
+  const caseUpdates = [];
+  const caseValues = [];
+
+  if (fields.incident_date && !caseRow.incident_date) {
+    caseUpdates.push('incident_date = ?');
+    caseValues.push(fields.incident_date);
+  }
+  if (fields.incident_location && !caseRow.incident_location) {
+    caseUpdates.push('incident_location = ?');
+    caseValues.push(fields.incident_location);
+  }
+  if (fields.policy_number && !caseRow.policy_number) {
+    caseUpdates.push('policy_number = ?');
+    caseValues.push(fields.policy_number);
+  }
+  if (fields.damage_description && !caseRow.incident_description) {
+    caseUpdates.push('incident_description = ?');
+    caseValues.push(fields.damage_description);
+  }
+  if (fields.amounts && fields.amounts.length > 0 && !caseRow.estimated_amount) {
+    const total = fields.amounts.reduce((s, a) => s + (a.amount || 0), 0);
+    if (total > 0) {
+      caseUpdates.push('estimated_amount = ?');
+      caseValues.push(total);
+    }
+  }
+
+  if (caseUpdates.length > 0) {
+    caseUpdates.push("updated_at = datetime('now')");
+    caseValues.push(caseId);
+    d.prepare(`UPDATE cases SET ${caseUpdates.join(', ')} WHERE id = ?`).run(...caseValues);
+  }
+
+  // --- Parties ---
+  if (Array.isArray(fields.parties)) {
+    for (const party of fields.parties) {
+      if (!party.name) continue;
+
+      const role = (party.role === 'owner' || party.role === 'driver') ? 'insured'
+        : (party.role === 'counterparty_driver' || party.role === 'counterparty_owner') ? 'counterparty'
+        : party.role === 'witness' ? 'witness'
+        : 'insured';
+
+      // Check if party with same name+role already exists
+      const existing = d.prepare(
+        'SELECT id FROM parties WHERE case_id = ? AND name = ? AND role = ?'
+      ).get(caseId, party.name, role);
+
+      if (!existing) {
+        d.prepare(`
+          INSERT INTO parties (case_id, role, name, egn, is_at_fault)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+          caseId,
+          role,
+          party.name,
+          party.egn || null,
+          party.is_at_fault != null ? (party.is_at_fault ? 1 : 0) : null
+        );
+      }
+    }
+  }
+
+  // --- Vehicles ---
+  if (Array.isArray(fields.vehicles)) {
+    for (const v of fields.vehicles) {
+      if (!v.reg_no && !v.make_model && !v.damage_description) continue;
+
+      const role = v.role || 'claimant_vehicle';
+      const regNo = v.reg_no || null;
+
+      // Dedupe by reg_no if available, otherwise by role
+      let existing;
+      if (regNo) {
+        existing = d.prepare(
+          'SELECT id FROM vehicles WHERE case_id = ? AND reg_no = ?'
+        ).get(caseId, regNo);
+      } else {
+        existing = d.prepare(
+          'SELECT id FROM vehicles WHERE case_id = ? AND role = ? AND reg_no IS NULL'
+        ).get(caseId, role);
+      }
+
+      if (!existing) {
+        let make = null, model = null;
+        if (v.make_model) {
+          const parts = v.make_model.trim().split(/\s+/);
+          make = parts[0] || null;
+          model = parts.length > 1 ? parts.slice(1).join(' ') : null;
+        }
+
+        d.prepare(`
+          INSERT INTO vehicles (case_id, role, reg_no, make, model, vin, damage_description)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          caseId,
+          role,
+          regNo,
+          make,
+          model,
+          v.vin || null,
+          v.damage_description || null
+        );
+      }
+    }
+  }
+
+  console.log(`[job-worker] Hydrated case/parties/vehicles for case #${caseId}`);
 }
 
 /**
