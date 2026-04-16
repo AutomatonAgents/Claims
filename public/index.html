@@ -2261,7 +2261,7 @@ function renderWorkQueue(cases) {
     html += '<td><span class="next-action-due ' + ds.cls + '">' + escHtml(ds.text) + '</span></td>';
     html += '<td><span class="days-open">' + (daysOpen != null ? daysOpen + 'д' : '---') + '</span></td>';
     html += '<td><span class="missing-docs-badge ' + missingClass + '">' + escHtml(missingText) + '</span></td>';
-    html += '<td style="font-size:12px;color:var(--text-secondary);">' + escHtml(c.assigned_name || '---') + '</td>';
+    html += '<td style="font-size:12px;color:var(--text-secondary);">' + escHtml(c.assignee_name || c.assigned_name || '---') + '</td>';
     html += '</tr>';
   });
   tbody.innerHTML = html;
@@ -2346,7 +2346,7 @@ function renderCaseDetail() {
     phtml += '<div class="panel-card">';
     phtml += '<div class="panel-card-title">' + escHtml(PARTY_ROLE_LABELS[p.role] || p.role) + '</div>';
     phtml += '<div class="panel-card-row"><span class="label">Име</span><span class="value">' + escHtml(p.name) + '</span></div>';
-    if (p.egn) phtml += '<div class="panel-card-row"><span class="label">ЕГН</span><span class="value egn-masked" title="Натиснете за показване" onclick="revealEgn(this,\'' + escHtml(p.egn) + '\')">' + escHtml(maskEgn(p.egn)) + '</span></div>';
+    if (p.egn) phtml += '<div class="panel-card-row"><span class="label">ЕГН</span><span class="value egn-masked" title="Натиснете за показване" onclick="revealEgn(' + p.id + ', this)">' + escHtml(maskEgn(p.egn)) + '</span></div>';
     if (p.phone) phtml += '<div class="panel-card-row"><span class="label">Телефон</span><span class="value">' + escHtml(p.phone) + '</span></div>';
     if (p.email) phtml += '<div class="panel-card-row"><span class="label">Имейл</span><span class="value">' + escHtml(p.email) + '</span></div>';
     if (p.is_at_fault != null) phtml += '<div class="panel-card-row"><span class="label">Вина</span><span class="value">' + (p.is_at_fault ? 'Виновен' : 'Невиновен') + '</span></div>';
@@ -2392,11 +2392,23 @@ function renderCaseDetail() {
   loadTimeline(c.id);
 }
 
-function revealEgn(el, egn) {
-  el.textContent = egn;
-  el.style.cursor = 'default';
-  el.style.textDecoration = 'none';
-  el.onclick = null;
+async function revealEgn(partyId, el) {
+  if (!currentCaseId) return;
+  try {
+    var data = await apiJson('/api/cases/' + currentCaseId + '/reveal-egn', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ party_id: partyId })
+    });
+    if (!data.success) throw new Error(data.error || 'Грешка');
+
+    el.textContent = data.egn;
+    el.style.cursor = 'default';
+    el.style.textDecoration = 'none';
+    el.onclick = null;
+  } catch (e) {
+    showToast('error', e.message);
+  }
 }
 
 async function loadDocuments(caseId) {
@@ -2488,8 +2500,14 @@ async function loadCompleteness(caseId) {
   try {
     var data = await apiJson('/api/cases/' + caseId + '/completeness');
     if (!data.success) return;
-    var result = data.result || data;
+    var result = data.completeness || data.result;
     var banner = document.getElementById('cdCompletenessBanner');
+    if (!result) {
+      banner.className = 'completeness-banner missing';
+      banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ' + escHtml(data.message || 'Проверка за комплектност...');
+      banner.style.display = 'flex';
+      return;
+    }
     if (result.ready_to_submit || result.complete) {
       banner.className = 'completeness-banner ready';
       banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Готов за изпращане';
@@ -2563,8 +2581,8 @@ function renderTimeline(events) {
     html += '<div class="timeline-content">';
     html += '<span class="timeline-actor">' + escHtml(ev.actor || '---') + '</span> ';
 
-    if (ev.action === 'status_change' && ev.old_status && ev.new_status) {
-      html += escHtml((STATUS_LABELS[ev.old_status] || ev.old_status) + ' &rarr; ' + (STATUS_LABELS[ev.new_status] || ev.new_status));
+    if ((ev.action === 'status_change' || ev.action === 'status_transition') && ev.old_status && ev.new_status) {
+      html += escHtml((STATUS_LABELS[ev.old_status] || ev.old_status) + ' -> ' + (STATUS_LABELS[ev.new_status] || ev.new_status));
     } else {
       html += escHtml(ev.action || '');
     }
@@ -2753,7 +2771,8 @@ function pollJobs(jobIds, callback) {
       if (completed[jobIds[i]]) continue;
       try {
         var data = await apiJson('/api/jobs/' + jobIds[i]);
-        if (data.success && (data.status === 'completed' || data.status === 'failed')) {
+        var jobStatus = data.status || (data.job && data.job.status);
+        if (data.success && (jobStatus === 'completed' || jobStatus === 'failed')) {
           completed[jobIds[i]] = true;
         } else {
           allDone = false;
@@ -2976,12 +2995,13 @@ async function showIntakeForm() {
     // Show missing docs
     try {
       var compData = await apiJson('/api/cases/' + intakeCaseId + '/completeness');
-      if (compData.success && compData.result && compData.result.missing_required && compData.result.missing_required.length) {
+      var completeness = compData.completeness || compData.result;
+      if (compData.success && completeness && completeness.missing_required && completeness.missing_required.length) {
         var missingEl = document.getElementById('intakeMissingDocs');
         var mhtml = '<div class="completeness-banner missing" style="margin-bottom:20px;">';
         mhtml += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
         mhtml += '<div><strong>Липсващи документи:</strong><ul style="margin:6px 0 0 16px;font-size:12px;">';
-        compData.result.missing_required.forEach(function(m) {
+        completeness.missing_required.forEach(function(m) {
           mhtml += '<li>' + escHtml(m.description_bg || DOC_TYPE_LABELS[m.doc_type] || m.doc_type) + ' (нужни: ' + (m.min_needed || 1) + ', налични: ' + (m.have || 0) + ')</li>';
         });
         mhtml += '</ul></div></div>';
