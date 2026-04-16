@@ -20,7 +20,7 @@ The broker's value = speed of intake, completeness checking, organized submissio
 4. **Auto-classification** — claim type (Каско ПТП, Каско кражба, ГО/MTPL, имущество)
 5. **Broker case pipeline** — explicit state machine with transition matrix
 6. **Insurer submission package** — one-click generate organized package for the insurer
-7. **Professional UI** — inbox/work queue driven by next_action + due_date. Bulgarian language throughout.
+7. **Professional UI** — inbox/work queue driven by next_action + next_action_due_date. Bulgarian language throughout.
 
 ## Broker Workflow (State Machine + Transition Matrix)
 
@@ -69,7 +69,7 @@ cases (
 
   -- Operational fields (drive the work queue)
   next_action TEXT,                        -- e.g., "Обадете се на клиента за липсващи документи"
-  next_action_due_date TEXT,               -- when this action is due
+  next_action_next_action_due_date TEXT,               -- when this action is due
   last_contact_date TEXT,                  -- last communication with client or insurer
   overdue_reason TEXT,                     -- why this case is delayed (if overdue)
 
@@ -104,6 +104,9 @@ cases (
   insurer_decision_at TEXT,
   paid_at TEXT,
   closed_at TEXT,
+  cancelled_at TEXT,                       -- if cancelled (distinct from closed)
+  cancellation_reason TEXT,                -- why cancelled
+  is_deleted INTEGER DEFAULT 0,           -- soft delete flag
   created_by INTEGER REFERENCES users(id)
 );
 
@@ -128,7 +131,8 @@ parties (
 vehicles (
   id INTEGER PRIMARY KEY,
   case_id INTEGER NOT NULL REFERENCES cases(id),
-  party_id INTEGER REFERENCES parties(id), -- which party owns/drives this vehicle
+  owner_party_id INTEGER REFERENCES parties(id),  -- who OWNS this vehicle
+  driver_party_id INTEGER REFERENCES parties(id), -- who DROVE at time of incident (may differ from owner)
   role TEXT NOT NULL,                      -- claimant_vehicle, counterparty_vehicle
   reg_no TEXT,                             -- рег. номер (e.g., СА 1234 ВК)
   vin TEXT,
@@ -164,7 +168,6 @@ documents (
 -- damage_photo             Снимка на щета
 -- repair_invoice           Фактура от сервиз
 -- expert_assessment        Оценка от вещо лице
--- medical_report           Медицински документ
 -- policy_copy              Копие на полицата
 -- id_copy                  Копие на лична карта
 -- vehicle_registration     Талон на МПС
@@ -244,7 +247,9 @@ processing_jobs (
   job_type TEXT NOT NULL,                  -- ocr_extraction, classification, completeness_check
   status TEXT DEFAULT 'queued',            -- queued, locked, processing, completed, failed
   locked_at TEXT,                          -- when worker picked it up (prevents double-processing)
-  depends_on INTEGER REFERENCES processing_jobs(id),  -- job dependency (completeness depends on all OCR)
+  depends_on_type TEXT,                    -- NULL, 'all_ocr_for_case', 'job_id'
+  depends_on_job_id INTEGER REFERENCES processing_jobs(id),  -- if depends_on_type='job_id'
+  -- depends_on_type='all_ocr_for_case': worker checks ALL ocr_extraction jobs for this case_id are completed before starting
   result TEXT,                             -- JSON result
   error TEXT,
   attempts INTEGER DEFAULT 0,
@@ -283,7 +288,16 @@ audit_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT, entity_type TEX
 | vehicle_keys_declaration | required | 1 | — | Декларация за предадени ключове |
 | vehicle_registration | required | 1 | — | Талон на МПС |
 
-### Property Damage (Имущество — пожар/наводнение/кражба)
+### Auto Glass (Каско — счупено стъкло)
+| doc_type | requirement | min_count | condition | description_bg |
+|----------|------------|-----------|-----------|----------------|
+| damage_photo | required | 2 | — | Снимки на счупеното стъкло |
+| policy_copy | required | 1 | — | Копие на полицата |
+| id_copy | required | 1 | — | Копие на лична карта |
+| vehicle_registration | required | 1 | — | Талон на МПС |
+| repair_invoice | optional | 1 | — | Фактура от сервиз (ако вече е сменено) |
+
+### Property Fire (Имущество — пожар)
 | doc_type | requirement | min_count | condition | description_bg |
 |----------|------------|-----------|-----------|----------------|
 | damage_photo | required | 4 | — | Снимки на щетите |
@@ -291,7 +305,33 @@ audit_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT, entity_type TEX
 | expert_assessment | required | 1 | — | Оценка от вещо лице |
 | ownership_proof | required | 1 | — | Документ за собственост |
 | incident_report | required | 1 | — | Писмено описание на събитието |
-| police_report | conditional | 1 | Ако е кражба или умишлено увреждане | Полицейски протокол |
+| police_report | conditional | 1 | Ако има съмнение за умишлен палеж | Полицейски протокол |
+
+### Property Flood (Имущество — наводнение)
+| doc_type | requirement | min_count | condition | description_bg |
+|----------|------------|-----------|-----------|----------------|
+| damage_photo | required | 4 | — | Снимки на щетите |
+| policy_copy | required | 1 | — | Копие на полицата |
+| expert_assessment | required | 1 | — | Оценка от вещо лице |
+| ownership_proof | required | 1 | — | Документ за собственост |
+| incident_report | required | 1 | — | Писмено описание на събитието |
+
+### Property Theft (Имущество — кражба)
+| doc_type | requirement | min_count | condition | description_bg |
+|----------|------------|-----------|-----------|----------------|
+| damage_photo | required | 4 | — | Снимки на щетите |
+| policy_copy | required | 1 | — | Копие на полицата |
+| expert_assessment | required | 1 | — | Оценка от вещо лице |
+| ownership_proof | required | 1 | — | Документ за собственост |
+| incident_report | required | 1 | — | Писмено описание на събитието |
+| police_report | required | 1 | — | Полицейски протокол за кражба |
+
+### Insurer-specific overrides (examples)
+| insurer | claim_type | doc_type | override | notes |
+|---------|-----------|----------|----------|-------|
+| ДЗИ | auto_collision | damage_photo | min_count=6 | ДЗИ изисква 6 снимки (4 ъгъла + 2 детайла) |
+| Алианц | auto_collision | expert_assessment | requirement=required | Алианц винаги иска вещо лице |
+| Булстрад | auto_theft | police_report | min_count=2 | Булстрад иска и протокол от районно |
 
 ## AI Design — Extraction + Completeness (NOT fraud)
 
@@ -301,9 +341,9 @@ You are an AI assistant for an insurance broker in Bulgaria.
 Extract structured data from this claim document. Return JSON:
 {
   "document_type": "bilateral_statement|kat_protocol|damage_photo|repair_invoice|
-                    medical_report|police_report|policy_copy|id_copy|
-                    vehicle_registration|vehicle_keys_declaration|ownership_proof|
-                    incident_report|expert_assessment|power_of_attorney|other",
+                    police_report|policy_copy|id_copy|vehicle_registration|
+                    vehicle_keys_declaration|ownership_proof|incident_report|
+                    expert_assessment|power_of_attorney|other",
   "extraction_confidence": 0.0-1.0,
   "extracted_fields": {
     "incident_date": "DD.MM.YYYY or null",
@@ -311,7 +351,7 @@ Extract structured data from this claim document. Return JSON:
     "parties": [
       {
         "name": "string",
-        "role": "driver|owner|passenger|pedestrian|witness|counterparty_driver|counterparty_owner",
+        "role": "driver|owner|witness|counterparty_driver|counterparty_owner",
         "egn": "string or null",
         "vehicle_reg": "string or null",
         "is_at_fault": true/false/null
@@ -382,14 +422,27 @@ Generate structured summary for insurer submission package:
 ```
 Document Upload:
   1. Save file to disk
-  2. Insert processing_job: type=ocr_extraction, status=queued, document_id=X
+  2. Insert processing_job: type=ocr_extraction, status=queued, document_id=X, case_id=Y
   3. Return job_id immediately to frontend
 
-After ALL OCR jobs for a case complete:
-  4. Insert processing_job: type=classification, status=queued, depends_on=last_ocr_job_id
-  5. Insert processing_job: type=completeness_check, status=queued, depends_on=classification_job_id
+Classification + Completeness (triggered automatically):
+  4. Insert processing_job: type=classification, status=queued, case_id=Y,
+     depends_on_type='all_ocr_for_case'  (worker won't start until ALL ocr jobs for this case_id are completed)
+  5. Insert processing_job: type=completeness_check, status=queued, case_id=Y,
+     depends_on_type='job_id', depends_on_job_id=classification_job_id
 
-Pipeline: OCR (per doc) → Classification (per case) → Completeness Check (per case)
+Pipeline: OCR (per doc, parallel) → Classification (per case, waits for ALL OCR) → Completeness (per case)
+```
+
+### Worker dependency resolution
+```
+For each queued job:
+  if depends_on_type IS NULL → ready to run
+  if depends_on_type = 'job_id' → check depends_on_job_id status = 'completed'
+  if depends_on_type = 'all_ocr_for_case' → SELECT COUNT(*) FROM processing_jobs
+     WHERE case_id=X AND job_type='ocr_extraction' AND status != 'completed'
+     → if count = 0, all OCR done, ready to run
+     → if count > 0, skip (will retry next cycle)
 ```
 
 ### Job Worker (job-worker.js)
@@ -417,8 +470,8 @@ Ensures demo NEVER fails regardless of API availability or latency.
 - POST /api/cases/intake — upload docs → async OCR → auto-create case (returns case_id + job_ids)
 - GET /api/cases — list (filters: status, claim_type, assignee, insurer, overdue, date range)
 - GET /api/cases/:id — full case with parties, vehicles, documents, timeline, communications
-- PUT /api/cases/:id — update case fields (including next_action, due_date)
-- DELETE /api/cases/:id — soft delete (status=closed, reason=cancelled)
+- PUT /api/cases/:id — update case fields (including next_action, next_action_due_date)
+- DELETE /api/cases/:id — soft delete (is_deleted=1, cancelled_at=now, cancellation_reason required). Distinct from closing.
 
 ### Case Pipeline
 - POST /api/cases/:id/transition — validate against transition matrix, log in timeline
@@ -445,7 +498,7 @@ Ensures demo NEVER fails regardless of API availability or latency.
 
 ### Dashboard & Work Queue
 - GET /api/dashboard — KPIs (open, awaiting docs, submitted, overdue, avg days)
-- GET /api/dashboard/workqueue — cases sorted by: overdue first, then by due_date ASC, then created_at ASC
+- GET /api/dashboard/workqueue — cases sorted by: overdue first, then by next_action_due_date ASC, then created_at ASC
 
 ### Auth (reuse from Argus)
 - POST /api/auth/login
@@ -457,7 +510,7 @@ Ensures demo NEVER fails regardless of API availability or latency.
 ### 1. Work Queue / Inbox (MAIN PAGE)
 - **This is the hero screen**
 - Cases sorted by urgency: overdue (red) → due today (amber) → upcoming → no due date
-- Each row: case #, claimant name, type badge, status badge, next_action, due_date, days open, missing docs count, assigned to
+- Each row: case #, claimant name, type badge, status badge, next_action, next_action_due_date, days open, missing docs count, assigned to
 - Group tabs: "Нуждае се от действие", "Чака клиент", "Чака застраховател", "Приключени"
 - Quick filters: my cases, all, by insurer, by type, overdue only
 - Click → case detail
@@ -475,7 +528,7 @@ Ensures demo NEVER fails regardless of API availability or latency.
   - "Ready to submit" / "X documents missing" prominent banner
 - **Right panel**: timeline (all events: status changes, docs, comms, AI, notes)
 - **Bottom actions**: Transition, Add Communication, Generate Submission Package, Add Note
-- **Next Action bar**: prominent display of next_action + due_date, edit inline
+- **Next Action bar**: prominent display of next_action + next_action_due_date, edit inline
 
 ### 3. New Case / Intake
 - Drag & drop zone (multi-file)
@@ -549,8 +602,8 @@ D:\AutomatON\claims-demo\
 
 ## Seed Data (pre-loaded for demo)
 1. **Case AMR-2026-0001** — Каско ПТП, status: `validated_by_broker`, all docs present, 2 parties + 2 vehicles, ready to submit. Demonstrates the complete happy path.
-2. **Case AMR-2026-0002** — ГО/MTPL, status: `awaiting_client_docs`, 2 of 6 required docs uploaded, next_action: "Обадете се на клиента за двустранен протокол", due_date: tomorrow. Demonstrates missing doc detection.
-3. **Case AMR-2026-0003** — Имущество наводнение, status: `awaiting_insurer_decision`, submitted 5 days ago, next_action: "Проверете статус при ДЗИ", due_date: today. Demonstrates follow-up tracking.
+2. **Case AMR-2026-0002** — ГО/MTPL, status: `awaiting_client_docs`, 2 of 6 required docs uploaded, next_action: "Обадете се на клиента за двустранен протокол", next_action_due_date: tomorrow. Demonstrates missing doc detection.
+3. **Case AMR-2026-0003** — Имущество наводнение, status: `awaiting_insurer_decision`, submitted 5 days ago, next_action: "Проверете статус при ДЗИ", next_action_due_date: today. Demonstrates follow-up tracking.
 
 ## Demo Script (for Amarant meeting)
 1. Open **Work Queue** — show 3 pre-loaded cases in different states, explain the urgency sorting
@@ -562,10 +615,10 @@ D:\AutomatON\claims-demo\
 3. **Case 1 (ready)** — Show complete case with 2 parties, 2 vehicles, all docs green
    - Generate insurer submission package
    - Transition: validated → submitted to insurer
-   - Set next_action: "Проверете за отговор от Алианц", due_date: +7 days
+   - Set next_action: "Проверете за отговор от Алианц", next_action_due_date: +7 days
 4. **Case 3 (awaiting insurer)** — Show follow-up tracking
    - Add communication: "Обадих се на ДЗИ, казаха до петък"
-   - Update due_date
+   - Update next_action_due_date
 5. **Live intake** — Create new case from scratch: upload 1 photo
    - Watch AI extract data + classify as auto_collision
    - See missing doc checklist immediately
@@ -577,7 +630,7 @@ D:\AutomatON\claims-demo\
 - Upload → async OCR starts immediately, results within 15-30 seconds with progress indicator
 - Missing document detection with min_count is the "wow" moment
 - Fixture mode ensures demo NEVER fails
-- Work queue driven by next_action + due_date feels like real broker daily tool
+- Work queue driven by next_action + next_action_due_date feels like real broker daily tool
 - Parties + vehicles properly modeled for bilateral statement scenarios
 - Bulgarian language throughout
 - Works on localhost, demoable via screen share
@@ -588,7 +641,7 @@ P0 (must have for demo — this IS the demo):
 - Document upload + async OCR pipeline (OCR→classification→completeness)
 - Document requirements with min_count + conditions + completeness checking
 - Broker pipeline state machine with transition matrix
-- Work queue / inbox sorted by due_date + overdue
+- Work queue / inbox sorted by next_action_due_date + overdue
 - Case detail with document checklist + parties + timeline
 - Insurer submission package generation
 - Fixture mode for reliable demo
