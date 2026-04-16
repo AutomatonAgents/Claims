@@ -3,3 +3,4 @@ uploads/*
 !uploads/.gitkeep
 *.db
 .env
+data/claims.db*

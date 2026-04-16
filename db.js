@@ -284,7 +284,8 @@ function initDB() {
 
   const existingUsers = db.prepare('SELECT COUNT(*) AS cnt FROM users').get();
   if (existingUsers.cnt === 0) {
-    const passwordHash = crypto.createHash('sha256').update('admin123').digest('hex');
+    const bcrypt = require('bcryptjs');
+    const passwordHash = bcrypt.hashSync('admin123', 10);
     db.prepare(`
       INSERT INTO users (username, password_hash, role, full_name)
       VALUES (?, ?, ?, ?)
@@ -989,6 +990,14 @@ function getUserByUsername(username) {
   return getDB().prepare('SELECT * FROM users WHERE username = ?').get(username);
 }
 
+function getUserById(id) {
+  return getDB().prepare('SELECT * FROM users WHERE id = ?').get(id);
+}
+
+function getUserByEmail(email) {
+  return getDB().prepare('SELECT * FROM users WHERE username = ?').get(email);
+}
+
 // ── Audit Log ──
 
 function addAuditLog(data) {
@@ -1058,6 +1067,9 @@ module.exports = {
   getUsers,
   createUser,
   getUserByUsername,
+
+  getUserById,
+  getUserByEmail,
 
   // Audit
   addAuditLog
