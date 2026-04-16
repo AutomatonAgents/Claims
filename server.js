@@ -1210,6 +1210,47 @@ app.get('/uploads/:filename', (req, res) => {
 });
 
 // ============================================================
+// Settings
+// ============================================================
+
+app.get('/api/settings', (req, res) => {
+  try {
+    const dbConn = db.getDB();
+    const rows = dbConn.prepare('SELECT key, value FROM settings').all();
+    const settings = {};
+    for (const r of rows) {
+      try { settings[r.key] = JSON.parse(r.value); } catch { settings[r.key] = r.value; }
+    }
+    res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.put('/api/settings', (req, res) => {
+  try {
+    const dbConn = db.getDB();
+    const upsert = dbConn.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    const entries = Object.entries(req.body);
+    for (const [key, value] of entries) {
+      upsert.run(key, typeof value === 'string' ? value : JSON.stringify(value));
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/settings/users', (req, res) => {
+  try {
+    const users = db.getUsers();
+    res.json({ success: true, users: users.map(u => ({ id: u.id, username: u.username, full_name: u.full_name, role: u.role, created_at: u.created_at })) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============================================================
 // SPA Fallback
 // ============================================================
 
