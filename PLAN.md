@@ -69,7 +69,7 @@ cases (
 
   -- Operational fields (drive the work queue)
   next_action TEXT,                        -- e.g., "Обадете се на клиента за липсващи документи"
-  next_action_next_action_due_date TEXT,               -- when this action is due
+  next_action_due_date TEXT,               -- when this action is due
   last_contact_date TEXT,                  -- last communication with client or insurer
   overdue_reason TEXT,                     -- why this case is delayed (if overdue)
 
@@ -181,6 +181,7 @@ documents (
 document_requirements (
   id INTEGER PRIMARY KEY,
   claim_type TEXT NOT NULL,                -- auto_collision, auto_theft, auto_glass, property_fire, etc.
+  policy_type TEXT,                        -- NULL=any, 'casco', 'mtpl' (Casco vs MTPL may require different docs for same claim_type)
   doc_type TEXT NOT NULL,                  -- from unified taxonomy above
   requirement TEXT NOT NULL DEFAULT 'required',  -- required, conditional, optional
   min_count INTEGER DEFAULT 1,            -- e.g., damage_photo needs min 4
@@ -439,11 +440,22 @@ Pipeline: OCR (per doc, parallel) → Classification (per case, waits for ALL OC
 For each queued job:
   if depends_on_type IS NULL → ready to run
   if depends_on_type = 'job_id' → check depends_on_job_id status = 'completed'
-  if depends_on_type = 'all_ocr_for_case' → SELECT COUNT(*) FROM processing_jobs
-     WHERE case_id=X AND job_type='ocr_extraction' AND status != 'completed'
-     → if count = 0, all OCR done, ready to run
-     → if count > 0, skip (will retry next cycle)
+  if depends_on_type = 'all_ocr_for_case':
+     pending = SELECT COUNT(*) FROM processing_jobs
+       WHERE case_id=X AND job_type='ocr_extraction' AND status NOT IN ('completed', 'failed')
+     failed = SELECT COUNT(*) FROM processing_jobs
+       WHERE case_id=X AND job_type='ocr_extraction' AND status = 'failed'
+     → if pending = 0 AND failed = 0 → all OCR succeeded, ready to run
+     → if pending = 0 AND failed > 0 → run anyway with partial data, set ai_notes="X documents failed OCR"
+       (classification/completeness still useful with partial extraction — better than blocking forever)
+     → if pending > 0 → skip (will retry next cycle)
 ```
+
+### Job dedupe
+- Before inserting classification/completeness_check jobs, check if one already exists for this case_id with status IN ('queued','locked','processing')
+- If exists, skip insertion (no duplicates)
+- `GET /api/cases/:id/completeness` returns latest completed result, or triggers new job only if no active job exists
+- Each completeness result has a `version` (incrementing) so frontend knows if result is stale
 
 ### Job Worker (job-worker.js)
 ```
@@ -460,8 +472,35 @@ setInterval(2000):
 ```
 
 ### Fixture Mode (FIXTURE_MODE=force)
-Skip AI calls entirely. Return pre-built JSON from `fixtures/` directory matched by doc_type.
-Ensures demo NEVER fails regardless of API availability or latency.
+Skip AI calls entirely. Return pre-built JSON from `fixtures/` directory.
+
+**Per-job-type fixture resolution:**
+- `ocr_extraction`: match by document mimetype + original filename pattern → `fixtures/ocr/{doc_type}.json`
+  Fallback: `fixtures/ocr/generic.json` (returns low-confidence generic extraction)
+- `classification`: match by case_id's first document → `fixtures/classification/{scenario}.json`
+  Scenarios: `auto-collision`, `auto-theft`, `auto-glass`, `property-fire`, `property-flood`, `property-theft`
+- `completeness_check`: match by classification result → `fixtures/completeness/{scenario}-{complete|incomplete}.json`
+
+**Fixture files structure:**
+```
+fixtures/
+├── ocr/
+│   ├── bilateral_statement.json    (pre-extracted bilateral protocol data)
+│   ├── damage_photo.json           (damage description from photo)
+│   ├── policy_copy.json            (policy number, insurer, dates)
+│   ├── kat_protocol.json
+│   └── generic.json                (fallback)
+├── classification/
+│   ├── auto-collision.json
+│   ├── auto-theft.json
+│   └── property-fire.json
+└── completeness/
+    ├── auto-collision-complete.json
+    ├── auto-collision-incomplete.json
+    └── property-fire-incomplete.json
+```
+
+**Contract:** In fixture mode, job worker resolves fixture file → reads JSON → stores as job result → marks completed. Same async flow, just instant. Frontend code is identical in both modes.
 
 ## API Endpoints
 
